@@ -54,11 +54,10 @@ CREATE TABLE reports (
                    'kamera', 'telefon', 'sms', 'aplikacja', 'messenger', 'telegram')),
   status         TEXT NOT NULL DEFAULT 'nowe' CHECK (status IN (
                    'nowe', 'przekazane', 'w_realizacji', 'zamkniete')),
-  longitude      DOUBLE PRECISION,
-  latitude       DOUBLE PRECISION,
   sector         VARCHAR(10) REFERENCES sectors(id) ON DELETE SET NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   unit_id        TEXT,
+  position       DOUBLE PRECISION[] CHECK (array_length(position, 1) = 2);
   confirmations  INTEGER NOT NULL DEFAULT 1,
   blocking       BOOLEAN NOT NULL DEFAULT FALSE,
   camera_id      VARCHAR(10) REFERENCES cameras(id) ON DELETE SET NULL,

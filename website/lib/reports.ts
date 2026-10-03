@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import type { Camera, Category, Report, Source, Status } from "@/lib/types";
+import type { Camera, Category, LngLat, Report, Source, Status } from "@/lib/types";
 import { rowToReport, rowToSector, sectorOf, type ReportRow, type SectorRow } from "./rows";
 
 /** Zgłoszenie z nazwą dzielnicy i miasta — do listy i szczegółów pod /reports. */
@@ -54,8 +54,7 @@ export interface NewReport {
   category: Category;
   source: Source;
   status: Status;
-  longitude: number | null;
-  latitude: number | null;
+  position: LngLat;
   unitId: string | null;
   confirmations: number;
   blocking: boolean;
@@ -66,14 +65,14 @@ export interface NewReport {
 export async function insertReport(r: NewReport): Promise<string> {
   // Dzielnica z geometrii — bez niej zgłoszenie nie trafi na mapę żadnego miasta.
   const { rows: sectors } = await db.query<SectorRow>("SELECT * FROM sectors");
-  const sector = sectorOf([r.longitude, r.latitude], sectors.map((x) => rowToSector(x).feature));
+  const sector = sectorOf(r.position, sectors.map((x) => rowToSector(x).feature));
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO reports
        (id, title, description, category, source, status, longitude, latitude, sector,
         unit_id, confirmations, blocking, camera_id, confidence)
      VALUES ('Z-' || nextval('report_id_seq'), $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING id`,
-    [r.title, r.description, r.category, r.source, r.status, r.longitude, r.latitude, sector,
+    [r.title, r.description, r.category, r.source, r.status, r.position[1], r.position[0], sector,
     r.unitId, r.confirmations, r.blocking, r.cameraId, r.confidence]
   );
   return rows[0].id;
