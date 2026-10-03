@@ -16,6 +16,22 @@ export type Status = "nowe" | "przekazane" | "w_realizacji" | "zamkniete";
 
 export type Priority = "krytyczny" | "wysoki" | "sredni" | "niski";
 
+export const CATEGORY_LABELS: Record<Category, string> = {
+  drogi: "Drogi", zielen: "Zieleń", woda: "Woda", odpady: "Odpady",
+  oswietlenie: "Oświetlenie", dostepnosc: "Dostępność",
+  bezpieczenstwo: "Bezpieczeństwo", inne: "Inne",
+};
+
+export const SOURCE_LABELS: Record<Source, string> = {
+  kamera: "Kamera", telefon: "Telefon", sms: "SMS",
+  aplikacja: "Aplikacja", messenger: "Messenger", telegram: "Telegram",
+};
+
+export const STATUS_LABELS: Record<Status, string> = {
+  nowe: "Nowe", przekazane: "Przekazane",
+  w_realizacji: "W realizacji", zamkniete: "Zamknięte",
+};
+
 export interface Unit {
   id: string;
   name: string;

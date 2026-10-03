@@ -1,4 +1,5 @@
 -- db/init.sql
+CREATE SEQUENCE report_id_seq START 1062;
 
 CREATE TABLE cameras (
   id         VARCHAR(10) PRIMARY KEY,
