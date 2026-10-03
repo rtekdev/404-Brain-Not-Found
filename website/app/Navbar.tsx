@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity } from "lucide-react";
 import { APP_NAME } from "@/lib/meta";
+import AlarmButton from "@/components/AlarmButton";
 
 const LINKS = [
   { href: "/centrum", label: "Centrum" },
@@ -30,6 +31,7 @@ export default function Navbar() {
           ))}
         </ul>
       </nav>
+      <AlarmButton />
     </header>
   );
 }

@@ -1,0 +1,105 @@
+import type { Pool } from "pg";
+import type { Feature, MultiPolygon, Polygon } from "geojson";
+import type { AccessPoint, Asset, Camera, Category, LngLat, Place, Report, Sector, Source, Status } from "./types";
+import {
+  rowToAccessPoint,
+  rowToAsset,
+  rowToCamera,
+  rowToPlace,
+  rowToReport,
+  rowToSector,
+  sectorOf,
+  type AccessPointRow,
+  type AssetRow,
+  type CameraRow,
+  type PlaceRow,
+  type ReportRow,
+  type SectorFeature,
+  type SectorRow,
+} from "./rows";
+
+// Dostęp do danych miasta w Postgresie. Pool przekazywany z zewnątrz — ten sam kod w serwerze i w testach.
+
+export interface CityData {
+  slug: string;
+  name: string;
+  boundary: Feature<Polygon | MultiPolygon>;
+  sectors: Sector[];
+  sectorFeatures: SectorFeature[];
+  places: Place[];
+  reports: Report[];
+  cameras: Camera[];
+  assets: Asset[];
+  access: AccessPoint[];
+}
+
+export async function loadCity(pool: Pool, slug = "krakow"): Promise<CityData> {
+  const [city, sectors, places, reports, cameras, assets, access] = await Promise.all([
+    pool.query<{ slug: string; name: string; boundary: Polygon | MultiPolygon }>("SELECT slug, name, boundary FROM city WHERE slug = $1", [slug]),
+    pool.query<SectorRow>("SELECT * FROM sectors WHERE city_slug = $1 ORDER BY id", [slug]),
+    pool.query<PlaceRow>("SELECT name, longitude, latitude, sector FROM places ORDER BY name"),
+    pool.query<ReportRow>("SELECT * FROM reports ORDER BY created_at DESC"),
+    pool.query<CameraRow>("SELECT * FROM cameras ORDER BY id"),
+    pool.query<AssetRow>("SELECT * FROM assets ORDER BY id"),
+    pool.query<AccessPointRow>("SELECT * FROM access_points ORDER BY id"),
+  ]);
+  if (!city.rows[0]) throw new Error(`Brak miasta „${slug}" w bazie — uruchom database/*.sql`);
+  const s = sectors.rows.map(rowToSector);
+  return {
+    slug: city.rows[0].slug,
+    name: city.rows[0].name,
+    boundary: { type: "Feature", properties: {}, geometry: city.rows[0].boundary },
+    sectors: s.map((x) => x.sector),
+    sectorFeatures: s.map((x) => x.feature),
+    places: places.rows.map(rowToPlace),
+    reports: reports.rows.map(rowToReport),
+    cameras: cameras.rows.map(rowToCamera),
+    assets: assets.rows.map(rowToAsset),
+    access: access.rows.map(rowToAccessPoint),
+  };
+}
+
+export interface NewCityReport {
+  title: string;
+  description: string;
+  category: Category;
+  source: Source;
+  position: LngLat;
+  blocking: boolean;
+  confidence: number;
+  cameraId?: string;
+  confirmations?: number;
+  handledBy?: string | null;
+}
+
+/** Zapisuje nowe zgłoszenie; dzielnica wyliczana z geometrii dzielnic w bazie. */
+export async function createReport(pool: Pool, r: NewCityReport): Promise<Report> {
+  const { rows: sectors } = await pool.query<SectorRow>("SELECT * FROM sectors");
+  const sector = sectorOf(r.position, sectors.map((x) => rowToSector(x).feature));
+  const { rows } = await pool.query<ReportRow>(
+    `INSERT INTO reports (id, title, description, category, source, status, longitude, latitude, sector, blocking, camera_id, confidence, confirmations, handled_by)
+     VALUES ('Z-' || nextval('report_id_seq'), $1, $2, $3, $4, 'nowe', $5, $6, $7, $8, $9, $10, $11, $12)
+     RETURNING *`,
+    [r.title, r.description, r.category, r.source, r.position[0], r.position[1], sector, r.blocking, r.cameraId ?? null, r.confidence, r.confirmations ?? 1, r.handledBy ?? null],
+  );
+  return rowToReport(rows[0]);
+}
+
+export async function updateReport(pool: Pool, id: string, patch: { status?: Status; unitId?: string | null }): Promise<void> {
+  await pool.query(
+    `UPDATE reports
+        SET status  = COALESCE($2, status),
+            unit_id = CASE WHEN $3 THEN $4 ELSE unit_id END
+      WHERE id = $1`,
+    [id, patch.status ?? null, patch.unitId !== undefined, patch.unitId ?? null],
+  );
+}
+
+/** Zgłoszenia utworzone po chwili `sinceMs` (do powiadomień o nowych zgłoszeniach). */
+export async function reportsSince(pool: Pool, sinceMs: number): Promise<Report[]> {
+  const { rows } = await pool.query<ReportRow>(
+    "SELECT * FROM reports WHERE created_at >= to_timestamp($1 / 1000.0) ORDER BY created_at",
+    [sinceMs],
+  );
+  return rows.map(rowToReport);
+}

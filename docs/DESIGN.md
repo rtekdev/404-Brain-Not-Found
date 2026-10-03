@@ -37,6 +37,7 @@ nie dekorację. Ruch pokazuje, że dane płyną na żywo.
 | Plakietka | priorytet, sektor, przekierowanie | kolor zawsze z tokenu priorytetu albo miary |
 | Karta wniosków AI | jedna (fioletowa ramka) | tylko treści wyliczone przez reguły/model, z odnośnikiem do zgłoszenia |
 | Zyski / Straty | zielona / bursztynowa karta | wycena zawsze pokazuje obie strony i bilans netto |
+| Alarm | krytyczny (czerwona karta, syrena, poświata krawędzi, dźwięk), zwykły (lekka karta, znika po 8 s) | nigdy pełny ekran ani blokada pracy; przy kilku naraz animuje się najważniejsze, „+N" i szczegóły od najważniejszego |
 
 ## Stany
 

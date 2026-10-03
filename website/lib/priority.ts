@@ -14,6 +14,14 @@ const CATEGORY_WEIGHT: Record<Category, number> = {
   inne: 10,
 };
 
+const HEALTH = ["zemdl", "nieprzytomn", "przytomno", "krew", "krwaw", "ranny", "ranna", "poszkodowan", "zawał", "duszno"];
+
+/** Czy opis wskazuje na zagrożenie zdrowia lub życia (zemdlenie, krew, poszkodowani). */
+export function isHealthThreat(text: string): boolean {
+  const t = text.toLowerCase();
+  return HEALTH.some((w) => t.includes(w));
+}
+
 export interface PriorityResult {
   score: number;
   level: Priority;
@@ -24,6 +32,10 @@ export function scoreReport(r: Report, now = Date.now()): PriorityResult {
   const reasons: string[] = [];
   let score = CATEGORY_WEIGHT[r.category];
 
+  if (isHealthThreat(`${r.title} ${r.description}`)) {
+    score += 25;
+    reasons.push("zagrożenie zdrowia lub życia");
+  }
   if (r.blocking) {
     score += 30;
     reasons.push("blokuje ruch lub dostęp");

@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
-import type { Asset } from "./types";
-import { insights, live, needFactor, sectorReading, sumReadings } from "./resources";
+import type { Asset, Sector, SectorProfile } from "./types";
+import { insights, live, sectorReading, sumReadings } from "./resources";
+
+const profile = (p: Partial<SectorProfile> = {}): SectorProfile => ({
+  pop: 30000,
+  waterLoss: 0.08,
+  waterReserve: 1,
+  wasteCapacity: 1,
+  rooftopPv: 1,
+  ...p,
+});
+
+const sector = (id: string, p: Partial<SectorProfile> = {}): Sector => ({
+  id,
+  name: id,
+  areaKm2: 10,
+  anchor: [20, 50],
+  profile: profile(p),
+});
 
 const pv: Asset = {
   id: "PV",
@@ -30,27 +47,37 @@ describe("live", () => {
 
 describe("sectorReading", () => {
   it("dolicza produkcję obiektów leżących w sektorze", () => {
-    const without = sectorReading("D18", "energia", [], 0);
-    const withPv = sectorReading("D18", "energia", [pv], 0);
+    const without = sectorReading(sector("D18"), "energia", [], 0);
+    const withPv = sectorReading(sector("D18"), "energia", [pv], 0);
     expect(withPv.primary).toBeCloseTo(without.primary);
     expect(withPv.secondary).toBeGreaterThan(without.secondary + 6);
   });
 
   it("nie dolicza obiektów z innych sektorów", () => {
-    expect(sectorReading("D01", "energia", [pv], 0)).toEqual(sectorReading("D01", "energia", [], 0));
+    expect(sectorReading(sector("D01"), "energia", [pv], 0)).toEqual(sectorReading(sector("D01"), "energia", [], 0));
   });
-});
 
-describe("needFactor", () => {
-  it("dla wody dolicza straty sieci, dla reszty jest neutralny", () => {
-    expect(needFactor("woda", "D13")).toBeCloseTo(1 / (1 - 0.21));
-    expect(needFactor("energia", "D13")).toBe(1);
+  it("skaluje zużycie liczbą mieszkańców z profilu dzielnicy", () => {
+    const small = sectorReading(sector("A", { pop: 10000 }), "woda", [], 0).primary;
+    const big = sectorReading(sector("A", { pop: 40000 }), "woda", [], 0).primary;
+    expect(big / small).toBeCloseTo(4);
+  });
+
+  it("dla wody potrzeba dolicza straty sieci, dla reszty równa się zużyciu", () => {
+    const w = sectorReading(sector("D13", { waterLoss: 0.21 }), "woda", [], 0);
+    expect(w.need).toBeCloseTo(w.primary / (1 - 0.21));
+    const e = sectorReading(sector("D13", { waterLoss: 0.21 }), "energia", [], 0);
+    expect(e.need).toBeCloseTo(e.primary);
   });
 });
 
 describe("insights", () => {
   const sectors = (metric: "woda" | "odpady") =>
-    ["D13", "D12"].map((id) => ({ id, name: id, reading: sectorReading(id, metric, [], 0) }));
+    [sector("D13", { waterLoss: 0.21 }), sector("D12", { wasteCapacity: 0.8 })].map((s) => ({
+      id: s.id,
+      name: s.name,
+      reading: sectorReading(s, metric, [], 0),
+    }));
 
   it("łączy straty wody ze zgłoszeniem w tym samym sektorze", () => {
     const out = insights("woda", sectors("woda"), [], [
@@ -58,6 +85,7 @@ describe("insights", () => {
     ]);
     const d13 = out.find((i) => i.sector === "D13");
     expect(d13?.tone).toBe("warn");
+    expect(d13?.text).toContain("straty 21%");
     expect(d13?.reportId).toBe("Z-1");
   });
 
@@ -75,7 +103,7 @@ describe("insights", () => {
 });
 
 describe("sumReadings", () => {
-  it("sumuje oba strumienie", () => {
-    expect(sumReadings([{ primary: 1, secondary: 2 }, { primary: 3, secondary: 4 }])).toEqual({ primary: 4, secondary: 6 });
+  it("sumuje strumienie", () => {
+    expect(sumReadings([{ primary: 1, secondary: 2 }, { primary: 3, secondary: 4 }])).toMatchObject({ primary: 4, secondary: 6 });
   });
 });

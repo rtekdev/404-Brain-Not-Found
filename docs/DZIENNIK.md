@@ -19,6 +19,111 @@
 
 ## Wpisy
 
+### 2026-10-03 — Alarm na prezentację: szczęśliwa ścieżka przy Tauron Arenie
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- Scenariusz alarmu: park przy Tauron Arenie, alejka obok food trucków (Arena Garden Street Food
+  Market; współrzędne z OSM/Nominatim) — „Wypadek: mężczyzna zemdlał po upadku" (krew z głowy, przejęte
+  przez 112 — PRM w drodze) + „Dziura w alejce przy food truckach", oba w D14 Czyżyny.
+- Priorytet: objawy zagrożenia zdrowia (zemdlenie, krew, poszkodowani…) +25 i powód „zagrożenie zdrowia
+  lub życia" — wypadek bez blokady ruchu też jest krytyczny.
+- Plan reagowania: kroki medyczne (Straż Miejska z AED, dojazd dla PRM), przyczyna z pobliskiego
+  zgłoszenia (dziura/konar/oświetlenie ≤ 200 m → zabezpiecz, właściwa jednostka); objazdy MPK i SMS-alert
+  tylko przy blokadzie ruchu.
+- Szczęśliwa ścieżka: gdy serwer/baza nie odpowie w 3 s, alarm z danych lokalnych (`localAlertReports`);
+  pula połączeń z limitem 3 s; błędy sprawdzania nowych zgłoszeń nie psują ekranu.
+
+**Zweryfikowane — jak dokładnie:**
+- TDD: testy priorytetu, kroków medycznych z przyczyną (i bez — powyżej 200 m), scenariusza w D14,
+  alarmu lokalnego — czerwone, potem zielone; `npm test` z bazą 73/73.
+- Przeglądarka (obraz produkcyjny): alarm z bazą — krytyczny 76, D14, kroki AED / dojazd / przyczyna
+  Z-… dziura (10 m); znacznik przy Tauron Arenie. Baza zatrzymana po załadowaniu strony → alarm lokalny
+  po 3,4 s. Baza włączona, testowe wiersze usunięte (38).
+
+**Świadomie odłożone:**
+- Bez bazy przy wejściu na stronę `/centrum` zwraca 500 — dane miasta są tylko w bazie (decyzja „baza
+  zamiast plików JSON"); szczęśliwa ścieżka obejmuje awarię w trakcie pokazu.
+
+### 2026-10-03 — Alarmy nowych zgłoszeń i plan reagowania
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- `lib/response.ts`: `responsePlan` (skrót, status, kroki reagowania — 112, MPK, Straż Miejska, Zarząd
+  Dróg/VMS, Wodociągi, Zieleń, SMS-alert dzielnicy, kamera, inne zgłoszenia w dzielnicy, przekazanie
+  jednostce) i `pickAlert` (najważniejsze do animacji, reszta od najważniejszego).
+- `components/AlertCenter.tsx`: alarm krytyczny (czerwona karta, wjazd + drżenie, pulsująca syrena,
+  poświata krawędzi ekranu ~7 s, sygnał Web Audio) i lekki komunikat zwykły (znika po 8 s); „+N",
+  szczegóły z krokami i przyciskami Powiadom / Przekaż / Podgląd / Pokaż. Bez pełnego ekranu.
+- Mapa co 4 s pyta bazę o nowe zgłoszenia (`reportsSinceAction`) — alarm zadziała też dla przyszłego
+  bota Telegram i numeru telefonu. Przycisk „Symuluj alarm" w górnym pasku (`AlarmButton`): wypadek
+  przejęty przez 112 + przepełniony kosz w tej samej chwili; z innej strony przenosi na `/centrum?alarm=1`.
+- Baza: kolumna `reports.handled_by` (kto przejął poza urzędem); Z-1051 — „112 — Policja".
+  Na istniejącej bazie dodana przez `ALTER TABLE` (dane zachowane).
+
+**Zweryfikowane — jak dokładnie:**
+- TDD: testy `responsePlan`, `pickAlert`, scenariusza alarmu (wypadek krytyczny, kosz nie), mapowania
+  `handled_by`, integracyjny (Z-1051 przejęte przez 112) — czerwone, potem zielone; `npm test` z bazą 66/66.
+- Przeglądarka (obraz produkcyjny): alarm krytyczny z „+1", szczegóły z krokami, „Powiadom" → zrobione
+  + komunikat; zwykłe zgłoszenie dopisane wprost do bazy → lekki komunikat po ~4,5 s, znika po 8 s;
+  przycisk z `/reports` → `/centrum` i alarm. Testowe wiersze usunięte (38 zgłoszeń).
+
+**Świadomie odłożone:**
+- Powiadomienia „Powiadom MPK / SMS-alert" są pokazowe — bez wysyłki do zewnętrznych systemów.
+
+### 2026-10-03 — Jeden Docker dla aplikacji, mapa ładuje się od razu
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- Decyzja człowieka: zostaje jeden zestaw, produkcyjny („one shot"). `Dockerfile.prod` → `Dockerfile`;
+  usunięte `Dockerfile.dev`, `docker-compose.prod.yml`, `nginx/`. `docker-compose.yml`: `web` (build
+  produkcyjny, port 3000) + `db` (Postgres — wymagany, aplikacja na nim działa).
+- Mapa: warstwy miasta dodawane po `style.load` zamiast `load` — `load` czekał na wszystkie kafelki
+  CARTO (kilkadziesiąt sekund), teraz znaczniki są po ok. 1 s.
+
+**Zweryfikowane — jak dokładnie:**
+- `docker compose up -d --build`: `/`, `/centrum`, `/reports`, `/reports/add` → 200, `/map` → 307 na
+  `/centrum`; `/reports` czyta bazę na żywo (wiersz dopisany w psql od razu widoczny, potem usunięty).
+- Przeglądarka: 80 znaczników na mapie 1,1 s od otwarcia `/centrum`.
+
+**Świadomie odłożone:**
+- Tryb deweloperski z przeładowaniem tylko bez Dockera (`npm run dev` + baza z `docker compose up -d db`).
+
+### 2026-10-03 — Przejście z danych w kodzie na bazę PostgreSQL
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- `database/init.sql` zastąpiony trzema plikami wczytywanymi przy starcie Postgresa:
+  `01-schema.sql` (nowe tabele `city`, `sectors` z profilami zasobów, `places`; klucze obce `sector`;
+  źródło `telegram`), `02-city.sql` (granica, 18 dzielnic, 271 osiedli — generuje `build-city.mjs`),
+  `03-seed.sql` (profile, 17 kamer, 38 zgłoszeń, 15 obiektów, 8 punktów dostępności, z dzielnicami).
+  `docker-compose.yml` montuje cały katalog `database/`.
+- `/centrum` pobiera dane serwerowo (`lib/city-repo.ts`, `lib/rows.ts`), nowe zgłoszenia i zmiany
+  statusu/jednostki zapisują akcje serwera (`app/centrum/actions.ts`). Profile dzielnic przyszły z bazy
+  (`Sector.profile`, `Reading.need`).
+- Usunięte: `lib/demo-data.ts`, `public/data/krakow/`; skrypty pokazu w `lib/simulation.ts`.
+  `/map` przekierowuje na `/centrum`.
+- localhost:3000 nie działał — jedyny kontener aplikacji był stary (port 3001, bez bazy); postawiony
+  od nowa z aktualnego `docker-compose.yml`.
+
+**Zweryfikowane — jak dokładnie:**
+- TDD: testy mapowania wierszy, `sectorOf`, odczytów z profilem i test integracyjny na bazie
+  (10 sprawdzeń: dzielnice, przypisania, po 2 zgłoszenia, kamery na żywo, trasa wody, scenariusze,
+  źródło telegram) — czerwone, potem zielone. `npm test` 57/57, z `DATABASE_URL` integracyjny 10/10.
+  `tsc` czysty.
+- Przeglądarka `localhost:3000/centrum`: dane z bazy (37 otwartych), Zasoby bez błędu (36 łuków
+  przepływu), Telegram → wiersz `Z-1062` w bazie (telegram, woda, D13), „Przekaż do" → `przekazane`,
+  `woda` w bazie. Testowy wiersz usunięty.
+
+**Świadomie odłożone:**
+- ESLint zgłasza błąd w `app/reports/page.tsx` (`<a>` zamiast `<Link>`) i ostrzeżenia w `reports.tsx` — pliki
+  innej osoby, poza zakresem.
+- `docker-compose.prod.yml` nie ma usługi bazy — do dodania przed wdrożeniem.
+
 ### 2026-10-03 — Zgłoszenia per dzielnica, Telegram i telefon
 
 Autor: Claude (Opus) + rtek

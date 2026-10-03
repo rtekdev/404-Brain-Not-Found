@@ -57,6 +57,8 @@ export interface Report {
   cameraId?: string;
   /** Pewność klasyfikacji 0–1 (z orkiestratora kamer lub modelu językowego). */
   confidence: number;
+  /** Kto przejął zgłoszenie poza urzędem, np. „112 — CPR Kraków"; null — nikt. */
+  handledBy?: string | null;
 }
 
 export interface Camera {
@@ -119,11 +121,26 @@ export interface AccessPoint {
   ok: boolean;
 }
 
+/** Parametry dzielnicy do modelu zasobów (z bazy, tabela sectors). */
+export interface SectorProfile {
+  /** Liczba mieszkańców (do skalowania zużycia). */
+  pop: number;
+  /** Straty wody w sieci (udział dostarczonej). */
+  waterLoss: number;
+  /** Zdolność dostaw wody względem potrzeb (zbiorniki, ujęcia); >1 = rezerwa. */
+  waterReserve: number;
+  /** Zdolność odbioru odpadów względem wytwarzanych; <1 = zaległości. */
+  wasteCapacity: number;
+  /** Udział dachów z fotowoltaiką (względny). */
+  rooftopPv: number;
+}
+
 export interface Sector {
   id: string;
   name: string;
   areaKm2: number;
   anchor: LngLat;
+  profile: SectorProfile;
 }
 
 export interface Place {

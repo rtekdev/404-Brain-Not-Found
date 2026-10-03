@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classify } from "./classify";
-import { INTAKE_SCENARIOS } from "./demo-data";
+import { INTAKE_SCENARIOS } from "./simulation";
 
 describe("classify", () => {
   it("asfalt to miejsce, nie problem — woda spod asfaltu to awaria wodna", () => {
