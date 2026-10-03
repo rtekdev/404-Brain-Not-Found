@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Pool } from "pg";
-import { HUB, sectorReading } from "./resources";
+import { hubFor, sectorReading } from "./resources";
 import { suggest } from "./transfer";
 import { parseMessage } from "./intake";
-import { ALERT_SCENARIO, CAMERA_EVENTS, INTAKE_SCENARIOS, SHOWCASE_SECTOR } from "./simulation";
-import { loadCity, type CityData } from "./city-repo";
+import { ALERT_SCENARIO, CAMERA_EVENTS, INTAKE_SCENARIOS, SHOWCASE_SECTOR, cameraEventsFor } from "./simulation";
+import { listCities, loadCity, otherCityOutlines, type CityData } from "./city-repo";
 import { sectorOf } from "./rows";
 
 // Testy na prawdziwej bazie (docker compose up db). Bez DATABASE_URL — pomijane.
@@ -49,7 +49,7 @@ describe.skipIf(!url)("baza danych — Kraków", () => {
   });
 
   it("centrala leży w granicach miasta", () => {
-    expect(sectorOf(HUB.position, city.sectorFeatures)).not.toBeNull();
+    expect(sectorOf(hubFor("krakow").position, city.sectorFeatures)).not.toBeNull();
   });
 
   it("wyciek wody leży w dzielnicy ze stratami, przepełnione kontenery — w dzielnicy z zaległościami", () => {
@@ -102,6 +102,58 @@ describe.skipIf(!url)("baza danych — Kraków", () => {
       await c.query("ROLLBACK");
     } finally {
       c.release();
+    }
+  });
+});
+
+describe.skipIf(!url)("baza danych — wiele miast", () => {
+  let pool: Pool;
+  let krakow: CityData;
+  let kielce: CityData;
+
+  beforeAll(async () => {
+    pool = new Pool({ connectionString: url });
+    [krakow, kielce] = await Promise.all([loadCity(pool, "krakow"), loadCity(pool, "kielce")]);
+  });
+  afterAll(() => pool?.end());
+
+  it("lista miast zawiera Kraków i Kielce", async () => {
+    const cities = await listCities(pool);
+    expect(cities).toEqual(expect.arrayContaining([{ slug: "krakow", name: "Kraków" }, { slug: "kielce", name: "Kielce" }]));
+  });
+
+  it("zarysy innych miast — bez bieżącego, z granicą do kliknięcia po oddaleniu", async () => {
+    const others = await otherCityOutlines(pool, "krakow");
+    expect(others.map((o) => o.slug)).toEqual(["kielce"]);
+    expect(others[0].name).toBe("Kielce");
+    expect(others[0].boundary.geometry).toEqual(kielce.boundary.geometry);
+  });
+
+  it("Kielce mają granicę, 9 sektorów S01–S09 i osiedla", () => {
+    expect(kielce.name).toBe("Kielce");
+    expect(kielce.sectors.map((s) => s.id)).toEqual(Array.from({ length: 9 }, (_, i) => `S0${i + 1}`));
+    expect(kielce.places.length).toBeGreaterThan(50);
+  });
+
+  it("każde miasto widzi tylko swoje dane, a każdy obiekt leży w swoim sektorze", () => {
+    for (const city of [krakow, kielce]) {
+      const ids = new Set(city.sectors.map((s) => s.id));
+      const rows = [...city.reports, ...city.cameras, ...city.assets, ...city.access, ...city.places.map((p) => ({ ...p, id: p.name }))];
+      expect(city.reports.length, city.slug).toBeGreaterThan(10);
+      expect(city.cameras.length, city.slug).toBeGreaterThan(5);
+      expect(city.assets.length, city.slug).toBeGreaterThan(5);
+      for (const x of rows) expect(ids.has(x.sector!), `${city.slug} ${x.id}`).toBe(true);
+    }
+  });
+
+  it("centrala i symulacje kamer Kielc leżą w Kielcach", () => {
+    expect(sectorOf(hubFor("kielce").position, kielce.sectorFeatures)).not.toBeNull();
+    const ids = new Set(kielce.cameras.map((c) => c.id));
+    const events = cameraEventsFor("kielce");
+    expect(events.length).toBeGreaterThan(0);
+    for (const e of events) {
+      expect(ids.has(e.cameraId), e.cameraId).toBe(true);
+      expect(sectorOf(e.position, kielce.sectorFeatures), e.title).not.toBeNull();
     }
   });
 });

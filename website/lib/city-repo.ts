@@ -33,15 +33,44 @@ export interface CityData {
   access: AccessPoint[];
 }
 
-export async function loadCity(pool: Pool, slug = "krakow"): Promise<CityData> {
+export interface CityRef {
+  slug: string;
+  name: string;
+}
+
+export const DEFAULT_CITY = "krakow";
+
+/** Miasta dostępne w bazie — do przełącznika w górnym pasku. */
+export async function listCities(pool: Pool): Promise<CityRef[]> {
+  const { rows } = await pool.query<CityRef>("SELECT slug, name FROM city ORDER BY name");
+  return rows;
+}
+
+export interface CityOutline extends CityRef {
+  boundary: Feature<Polygon | MultiPolygon>;
+}
+
+/** Granice pozostałych miast — po oddaleniu mapy można w nie kliknąć i przełączyć miasto. */
+export async function otherCityOutlines(pool: Pool, slug: string): Promise<CityOutline[]> {
+  const { rows } = await pool.query<{ slug: string; name: string; boundary: Polygon | MultiPolygon }>(
+    "SELECT slug, name, boundary FROM city WHERE slug <> $1 ORDER BY name",
+    [slug],
+  );
+  return rows.map((r) => ({ slug: r.slug, name: r.name, boundary: { type: "Feature", properties: {}, geometry: r.boundary } }));
+}
+
+/** Obiekty należą do miasta przez swój sektor (dzielnicę). */
+const IN_CITY = "sector IN (SELECT id FROM sectors WHERE city_slug = $1)";
+
+export async function loadCity(pool: Pool, slug = DEFAULT_CITY): Promise<CityData> {
   const [city, sectors, places, reports, cameras, assets, access] = await Promise.all([
     pool.query<{ slug: string; name: string; boundary: Polygon | MultiPolygon }>("SELECT slug, name, boundary FROM city WHERE slug = $1", [slug]),
     pool.query<SectorRow>("SELECT * FROM sectors WHERE city_slug = $1 ORDER BY id", [slug]),
-    pool.query<PlaceRow>("SELECT name, longitude, latitude, sector FROM places ORDER BY name"),
-    pool.query<ReportRow>("SELECT * FROM reports ORDER BY created_at DESC"),
-    pool.query<CameraRow>("SELECT * FROM cameras ORDER BY id"),
-    pool.query<AssetRow>("SELECT * FROM assets ORDER BY id"),
-    pool.query<AccessPointRow>("SELECT * FROM access_points ORDER BY id"),
+    pool.query<PlaceRow>(`SELECT name, longitude, latitude, sector FROM places WHERE ${IN_CITY} ORDER BY name`, [slug]),
+    pool.query<ReportRow>(`SELECT * FROM reports WHERE ${IN_CITY} ORDER BY created_at DESC`, [slug]),
+    pool.query<CameraRow>(`SELECT * FROM cameras WHERE ${IN_CITY} ORDER BY id`, [slug]),
+    pool.query<AssetRow>(`SELECT * FROM assets WHERE ${IN_CITY} ORDER BY id`, [slug]),
+    pool.query<AccessPointRow>(`SELECT * FROM access_points WHERE ${IN_CITY} ORDER BY id`, [slug]),
   ]);
   if (!city.rows[0]) throw new Error(`Brak miasta „${slug}" w bazie — uruchom database/*.sql`);
   const s = sectors.rows.map(rowToSector);

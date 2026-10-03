@@ -36,7 +36,7 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 - Od teraz pracujemy w trybie TDD — każda zmiana logiki zaczyna się od testu.
 - Nowe zgłoszenia (z każdego kanału, wykrywane w bazie co 4 s) wywołują komunikat: krytyczne — wyraźny alarm z animacją, zwykłe — lekki; szczegóły pokazują status (np. przejęte przez 112) i kroki reagowania od AI. Przycisk „Symuluj alarm" w górnym pasku.
 - Mapa działa na bazie PostgreSQL (gałąź `feature/baza-danych`): dane miasta, zgłoszenia, kamery i obiekty z bazy; nowe zgłoszenia i zmiany statusu zapisują się w bazie.
-- Miastem demo jest Kraków (decyzja D-01); Kielce zostały porzucone.
+- Dwa miasta demo: Kraków (domyślne, ze scenariuszami prezentacji) i Kielce — przełącznik w górnym pasku mapy, a po oddaleniu mapy drugie miasto podświetla się i można je kliknąć (decyzja D-03).
 
 ## Co dalej
 

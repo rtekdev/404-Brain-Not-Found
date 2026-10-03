@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import type { Map as MlMap } from "maplibre-gl";
 import { Building2 } from "lucide-react";
 import type { Asset, LngLat, Metric, Sector } from "@/lib/types";
-import { HUB, METRIC, assetMeter, fmt, meterAt, type Reading } from "@/lib/resources";
+import { METRIC, type Hub, assetMeter, fmt, meterAt, type Reading } from "@/lib/resources";
 import MapAnchor, { useMapZoom } from "./MapAnchor";
 
 /** Poniżej tego zoomu dane płyną z sektorów do centrali, powyżej — z obiektów do sektorów. */
@@ -38,6 +38,7 @@ interface Props {
   t: number;
   routes: Route[];
   onSectorClick: (id: string) => void;
+  hub: Hub;
 }
 
 /** Łuk między punktami ekranu — krzywa Béziera wygięta w bok o `bend` długości. */
@@ -85,7 +86,7 @@ export default function FlowOverlay(p: Props) {
     ? p.sectors.map((s) => ({
         id: s.id,
         from: s.anchor,
-        to: HUB.position,
+        to: p.hub.position,
         value: p.readings[s.id]?.primary ?? 0,
         dim: !!p.selectedSector && p.selectedSector !== s.id,
       }))
@@ -235,7 +236,7 @@ export default function FlowOverlay(p: Props) {
       ))}
 
       {cityView && (
-        <MapAnchor map={map} at={HUB.position} z={8}>
+        <MapAnchor map={map} at={p.hub.position} z={8}>
           <div className="relative grid place-items-center">
             <span className="hub-pulse absolute size-16 rounded-full" style={{ color: def.color }} aria-hidden />
             <div
@@ -243,7 +244,7 @@ export default function FlowOverlay(p: Props) {
               style={{ borderColor: def.color, boxShadow: `0 0 28px ${def.color}55` }}
             >
               <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-                <Building2 size={11} aria-hidden /> {HUB.name}
+                <Building2 size={11} aria-hidden /> {p.hub.name}
               </span>
               <span className="text-base font-bold tabular-nums" style={{ color: def.color }}>
                 {fmt(total, p.metric)} <span className="text-xs font-medium text-muted">{def.unit}</span>

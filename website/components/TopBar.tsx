@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Box, Check, ChevronDown, Layers, MapPin, Search, Video } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Box, Building2, Check, ChevronDown, Layers, MapPin, Search, Video } from "lucide-react";
 import type { Camera, LngLat, Place, Sector } from "@/lib/types";
 import type { ScoredReport } from "./CityMapApp";
+import type { CityRef } from "@/lib/city-repo";
 
 export const LAYER_DEFS = [
   { id: "boundary", label: "Granica miasta" },
@@ -38,11 +40,14 @@ function Dropdown({
   icon,
   children,
   wide,
+  plain,
 }: {
   label: ReactNode;
-  icon: ReactNode;
+  icon?: ReactNode;
   children: (close: () => void) => ReactNode;
   wide?: boolean;
+  /** Etykieta zawsze widoczna i wyróżniona (wybór miasta). */
+  plain?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useOutside(() => setOpen(false));
@@ -52,10 +57,14 @@ function Dropdown({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm hover:bg-panel-hover"
+        className={
+          plain
+            ? "flex h-10 items-center gap-1.5 rounded-lg px-2 text-lg font-bold tracking-tight hover:bg-panel-hover"
+            : "flex h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm hover:bg-panel-hover"
+        }
       >
         {icon}
-        <span className="hidden md:inline">{label}</span>
+        <span className={plain ? "" : "hidden md:inline"}>{label}</span>
         <ChevronDown size={14} className={`text-muted transition ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
       {open && (
@@ -70,7 +79,9 @@ function Dropdown({
 }
 
 interface Props {
+  /** Slug bieżącego miasta. */
   city: string;
+  cities: CityRef[];
   layers: Record<LayerId, boolean>;
   onToggleLayer: (id: LayerId) => void;
   sectors: Sector[];
@@ -94,6 +105,8 @@ export default function TopBar(p: Props) {
   const [q, setQ] = useState("");
   const [focused, setFocused] = useState(false);
   const searchRef = useOutside(() => setFocused(false));
+  const router = useRouter();
+  const current = p.cities.find((c) => c.slug === p.city);
 
   const hits = useMemo<Hit[]>(() => {
     const n = norm(q.trim());
@@ -117,7 +130,27 @@ export default function TopBar(p: Props) {
 
   return (
     <div className="glass absolute left-3 right-3 top-3 z-20 flex items-center gap-2 rounded-xl p-2 sm:right-auto">
-      <div className="hidden px-2 text-lg font-bold tracking-tight sm:block">{p.city}</div>
+      <Dropdown plain label={current?.name ?? p.city}>
+        {(close) =>
+          p.cities.map((c) => (
+            <button
+              key={c.slug}
+              type="button"
+              role="menuitemradio"
+              aria-checked={c.slug === p.city}
+              onClick={() => {
+                close();
+                if (c.slug !== p.city) router.push(`/centrum?miasto=${c.slug}`);
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-panel-hover"
+            >
+              <Building2 size={15} className="text-muted" aria-hidden />
+              <span className="flex-1">{c.name}</span>
+              {c.slug === p.city && <Check size={14} className="text-accent-soft" aria-hidden />}
+            </button>
+          ))
+        }
+      </Dropdown>
 
       <div ref={searchRef} className="relative min-w-0 flex-1 sm:w-72 sm:flex-none">
         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />

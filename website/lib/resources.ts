@@ -24,9 +24,21 @@ export const METRICS: MetricDef[] = [
 
 export const METRIC = Object.fromEntries(METRICS.map((m) => [m.id, m])) as Record<Metric, MetricDef>;
 
+export interface Hub {
+  name: string;
+  position: LngLat;
+}
+
 /** Centrala — punkt, do którego spływają dane z sektorów (Centrum Zarządzania Miastem). */
-// Punkt umowny między dzielnicami, żeby węzeł nie zasłaniał etykiet sektorów.
-export const HUB: { name: string; position: LngLat } = { name: "Centrala · Kraków", position: [19.985, 50.04] };
+// Punkty umowne między sektorami, żeby węzeł nie zasłaniał ich etykiet.
+const HUBS: Record<string, Hub> = {
+  krakow: { name: "Centrala · Kraków", position: [19.985, 50.04] },
+  kielce: { name: "Centrala · Kielce", position: [20.655, 50.858] },
+};
+
+export function hubFor(slug: string): Hub {
+  return HUBS[slug] ?? HUBS.krakow;
+}
 
 export interface Reading {
   primary: number;

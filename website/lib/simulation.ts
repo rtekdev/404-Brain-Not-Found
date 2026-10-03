@@ -41,6 +41,37 @@ export const CAMERA_EVENTS: CameraEvent[] = [
   },
 ];
 
+/** Symulacje kamer Kielc — kamery KC (database/04-kielce.sql). */
+const KIELCE_CAMERA_EVENTS: CameraEvent[] = [
+  {
+    title: "Dziura w jezdni wykryta automatycznie",
+    description: "Orkiestrator wykrył ubytek nawierzchni na pasie ruchu (seria 12 klatek).",
+    category: "drogi", position: [20.606, 50.8793], cameraId: "KC09", confidence: 0.9,
+  },
+  {
+    title: "Gałęzie na ścieżce rowerowej",
+    description: "Wykryto przeszkodę na ścieżce rowerowej po silnym wietrze.",
+    category: "zielen", position: [20.6632, 50.8594], cameraId: "KC08", confidence: 0.86, blocking: true,
+  },
+  {
+    title: "Dym nad budynkiem gospodarczym",
+    description: "Wykryto zadymienie w kadrze, zalecana weryfikacja przez służby.",
+    category: "bezpieczenstwo", position: [20.5525, 50.8535], cameraId: "KC12", confidence: 0.81, blocking: false,
+  },
+  {
+    title: "Rozlewisko na skrzyżowaniu",
+    description: "Wykryto zbierającą się wodę na skrzyżowaniu, pojazdy zwalniają.",
+    category: "woda", position: [20.6634, 50.9023], cameraId: "KC11", confidence: 0.84, blocking: true,
+  },
+];
+
+export function cameraEventsFor(slug: string): CameraEvent[] {
+  return slug === "kielce" ? KIELCE_CAMERA_EVENTS : CAMERA_EVENTS;
+}
+
+/** Scenariusze Telegrama, telefonu i alarmu są napisane pod Kraków (dzielnica pokazowa D13). */
+export const SCRIPTED_CITY = "krakow";
+
 export interface IntakeLine {
   who: "mieszkaniec" | "bot";
   text: string;

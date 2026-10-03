@@ -34,6 +34,8 @@ interface Props {
   onUpdate: (id: string, patch: { status?: Status; unitId?: string | null }) => void;
   onNewReport: () => void;
   onSimulate: (kind: SimKind) => void;
+  /** Dostępne pokazy — scenariusze Telegrama i telefonu są tylko dla Krakowa. */
+  simKinds: SimKind[];
   now: number;
 }
 
@@ -325,7 +327,7 @@ export default function EventsPanel(p: Props) {
                   { kind: "kamera", label: "Kamera wykrywa zdarzenie", icon: <Video size={15} aria-hidden /> },
                   { kind: "telegram", label: "Wiadomość z Telegrama", icon: <Send size={15} aria-hidden /> },
                   { kind: "telefon", label: "Telefon od mieszkańca", icon: <Phone size={15} aria-hidden /> },
-                ] as const).map((o) => (
+                ] as const).filter((o) => p.simKinds.includes(o.kind)).map((o) => (
                   <button
                     key={o.kind}
                     type="button"
