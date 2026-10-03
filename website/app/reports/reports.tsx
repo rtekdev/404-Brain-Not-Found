@@ -1,75 +1,118 @@
-"use client"
+"use client";
 
-import { Report } from "@/lib/types";
-import { navigate } from "next/dist/client/components/segment-cache/navigation";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronRight, Clock, Users } from "lucide-react";
+import { CATEGORY_ICON, SOURCE_ICON } from "@/components/icons";
+import { PRIORITY_COLOR, PRIORITY_LABEL, SOURCE_LABEL, STATUS_LABEL, timeAgo } from "@/lib/meta";
+import { scoreReport } from "@/lib/priority";
+import type { ReportItem } from "@/lib/reports";
 
-interface ReportsProps { 
-  reports: Report[];
-};
+type Filter = "otwarte" | "krytyczne" | "zamkniete";
 
-const styles: Record<
-  Report["status"],
-  { card: string; badge: string; button: string }
-> = {
-  nowe: {
-    card: "border-red-500 shadow-[0_0_18px_rgba(239,68,68,0.55)] hover:shadow-[0_0_30px_rgba(239,68,68,0.8)]",
-    badge: "bg-red-500/15 text-red-400 border-red-500/60",
-    button: "bg-red-500 text-black shadow-[0_0_12px_rgba(239,68,68,0.8)] hover:bg-red-400",
-  },
-  w_realizacji: {
-    card: "border-yellow-400 shadow-[0_0_18px_rgba(250,204,21,0.5)] hover:shadow-[0_0_30px_rgba(250,204,21,0.8)]",
-    badge: "bg-yellow-400/15 text-yellow-300 border-yellow-400/60",
-    button: "bg-yellow-400 text-black shadow-[0_0_12px_rgba(250,204,21,0.8)] hover:bg-yellow-300",
-  },
-  przekazane: {
-    card: "border-blue-400 shadow-[0_0_18px_rgba(250,204,21,0.5)] hover:shadow-[0_0_30px_rgba(250,204,21,0.8)]",
-    badge: "bg-blue-400/15 text-blue-300 border-blue-400/60",
-    button: "bg-blue-400 text-black shadow-[0_0_12px_rgba(250,204,21,0.8)] hover:bg-blue-300",
-  },
-  zamkniete: {
-    card: "border-green-400 shadow-[0_0_18px_rgba(74,222,128,0.5)] hover:shadow-[0_0_30px_rgba(74,222,128,0.8)]",
-    badge: "bg-green-400/15 text-green-300 border-green-400/60",
-    button: "bg-green-400 text-black shadow-[0_0_12px_rgba(74,222,128,0.8)] hover:bg-green-300",
-  },
-};
+const TABS: { id: Filter; label: string }[] = [
+  { id: "otwarte", label: "Otwarte" },
+  { id: "krytyczne", label: "Krytyczne" },
+  { id: "zamkniete", label: "Zamknięte" },
+];
 
-export default function Reports({
-  reports,
-}: ReportsProps) { 
+export default function Reports({ reports }: { reports: ReportItem[] }) {
+  const [filter, setFilter] = useState<Filter>("otwarte");
+  const [city, setCity] = useState("");
+  const [now] = useState(() => Date.now());
 
-  if (!reports) return <p>loading...</p>
+  const scored = useMemo(() => reports.map((r) => ({ ...r, priority: scoreReport(r, now) })), [reports, now]);
+  const cities = useMemo(
+    () => [...new Map(scored.filter((r) => r.citySlug).map((r) => [r.citySlug!, r.cityName!])).entries()],
+    [scored],
+  );
+  const inCity = scored.filter((r) => !city || r.citySlug === city);
+  const open = inCity.filter((r) => r.status !== "zamkniete");
+  const critical = open.filter((r) => r.priority.level === "krytyczny");
+  const list = (filter === "otwarte" ? open : filter === "krytyczne" ? critical : inCity.filter((r) => r.status === "zamkniete"))
+    .sort((a, b) => b.priority.score - a.priority.score);
+
   return (
-    <div>
-      {reports.map((report, i) => {
-        const s = styles[report.status];
-
-        return (
-          <div key={report.id}>
-            <div
-              className={`flex flex-col gap-3 rounded-xl border-2 bg-zinc-900 p-5 transition-shadow duration-200`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-400">#{report.id}</span>
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${s.badge}`}
-                >
-                  {report.status}
-                </span>
-              </div>
-
-              <h2 className="text-lg font-semibold text-white">{report.title}</h2>
-
-              <Link
-                href={`/reports/${report.id}`}
-                className={`mt-2 rounded-lg px-4 py-2 text-center text-sm font-bold transition ${s.button}`}
-              >
-                View
-              </Link>
+    <section className="rounded-xl border border-line bg-panel-solid">
+      <div className="border-b border-line p-4">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {[
+            { v: open.length, l: "otwarte" },
+            { v: critical.length, l: "krytyczne", c: PRIORITY_COLOR.krytyczny },
+            { v: open.filter((r) => r.source === "kamera").length, l: "z kamer" },
+          ].map((s) => (
+            <div key={s.l} className="rounded-lg bg-black/20 py-2">
+              <div className="text-xl font-semibold tabular-nums" style={s.c ? { color: s.c } : undefined}>{s.v}</div>
+              <div className="text-[11px] text-subtle">{s.l}</div>
             </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex gap-1" role="tablist">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={filter === t.id}
+                onClick={() => setFilter(t.id)}
+                className={`rounded-md px-2.5 py-1 text-sm ${filter === t.id ? "bg-panel-hover text-foreground" : "text-muted hover:text-foreground"}`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-        )
-      })}
-    </div>
-  )
+          {cities.length > 1 && (
+            <select
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              aria-label="Miasto"
+              className="ml-auto h-8 rounded-lg border border-line bg-black/20 px-2 text-sm focus:border-accent focus:outline-none"
+            >
+              <option value="">Wszystkie miasta</option>
+              {cities.map(([slug, name]) => (
+                <option key={slug} value={slug}>{name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      <ul className="divide-y divide-line/60">
+        {list.length === 0 && <li className="p-6 text-center text-sm text-subtle">Brak zgłoszeń w tym widoku.</li>}
+        {list.map((r) => {
+          const Icon = CATEGORY_ICON[r.category];
+          const SourceIcon = SOURCE_ICON[r.source];
+          const color = PRIORITY_COLOR[r.priority.level];
+          return (
+            <li key={r.id}>
+              <Link href={`/reports/${r.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-panel-hover">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg" style={{ background: `${color}22`, color }}>
+                  <Icon size={18} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{r.title}</span>
+                  <span className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-subtle">
+                    <span className="rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: `${color}22`, color }}>
+                      {PRIORITY_LABEL[r.priority.level]} · {r.priority.score}
+                    </span>
+                    <span className="flex items-center gap-1"><SourceIcon size={12} aria-hidden />{SOURCE_LABEL[r.source]}</span>
+                    <span className="flex items-center gap-1"><Clock size={12} aria-hidden />{timeAgo(r.createdAt, now)}</span>
+                    {r.confirmations > 1 && <span className="flex items-center gap-1"><Users size={12} aria-hidden />{r.confirmations}</span>}
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-muted">
+                    <span className="font-mono">{r.id}</span>
+                    {r.cityName && ` · ${r.cityName}`}
+                    {r.sectorName && `, ${r.sectorName}`} · {STATUS_LABEL[r.status]}
+                  </span>
+                </span>
+                <ChevronRight size={16} className="shrink-0 text-subtle" aria-hidden />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }

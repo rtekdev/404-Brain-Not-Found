@@ -1,23 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Map as MlMap } from "maplibre-gl";
 import { Radio, Sparkles } from "lucide-react";
 import MapView, { boundsOf } from "./map/MapView";
 import MarkerOverlay from "./map/MarkerOverlay";
 import MapPopup from "./map/MapPopup";
 import TopBar, { LAYER_DEFS, type LayerId } from "./TopBar";
-import EventsPanel, { type SimKind } from "./EventsPanel";
-import IntakeSimulator from "./IntakeSimulator";
-import type { IntakeDraft } from "@/lib/intake";
+import EventsPanel from "./EventsPanel";
 import ResourcesPanel from "./ResourcesPanel";
 import SidePanel, { type Mode } from "./SidePanel";
 import FlowOverlay from "./map/FlowOverlay";
 import ReportDialog from "./ReportDialog";
 import CameraFeed from "./CameraFeed";
 import { Legend, ZoomControls } from "./Legend";
-import { CAMERA_EVENTS, INTAKE_SCENARIOS, localAlertReports, type IntakeScenario } from "@/lib/simulation";
-import type { CityData } from "@/lib/city-repo";
+import { SCRIPTED_CITY, localAlertReports } from "@/lib/simulation";
+import type { CityData, CityOutline, CityRef } from "@/lib/city-repo";
+import OtherCities from "./map/OtherCities";
 import { sectorOf as sectorOfPoint } from "@/lib/rows";
 import { createReportAction, reportsSinceAction, simulateAlertAction, updateReportAction } from "@/app/centrum/actions";
 import AlertCenter from "./AlertCenter";
@@ -25,7 +25,7 @@ import { pickAlert, responsePlan, type Plan, type Step } from "@/lib/response";
 import { classify } from "@/lib/classify";
 import { scoreReport, type PriorityResult } from "@/lib/priority";
 import { ACCESS_LABEL, ASSET_LABEL, CATEGORY_LABEL, unitById, unitForCategory } from "@/lib/meta";
-import { METRIC, assetMeter, fmt, meterAt, sectorReading, type Reading } from "@/lib/resources";
+import { METRIC, assetMeter, fmt, hubFor, meterAt, sectorReading, type Reading } from "@/lib/resources";
 import { applyTransfers, distanceKm, estimate, type Transfer } from "@/lib/transfer";
 import type { Draft } from "./TransferPlanner";
 import type { LngLat, Metric, Report, Status } from "@/lib/types";
@@ -39,7 +39,8 @@ function isDesktop() {
   return typeof window !== "undefined" && window.innerWidth >= 640;
 }
 
-export default function CityMapApp({ city }: { city: CityData }) {
+export default function CityMapApp({ city, cities, others }: { city: CityData; cities: CityRef[]; others: CityOutline[] }) {
+  const router = useRouter();
   // Dane miasta przychodzą z bazy (strona serwerowa /centrum).
   const geo = useMemo(
     () => ({
@@ -47,9 +48,14 @@ export default function CityMapApp({ city }: { city: CityData }) {
       sectors: { type: "FeatureCollection" as const, features: city.sectorFeatures },
       sectorList: city.sectors,
       places: city.places,
+      others: {
+        type: "FeatureCollection" as const,
+        features: others.map((o) => ({ ...o.boundary, properties: { slug: o.slug, name: o.name } })),
+      },
     }),
-    [city],
+    [city, others],
   );
+  const switchCity = (slug: string) => router.push(`/centrum?miasto=${slug}`);
   const { cameras, assets, access } = city;
   const [map, setMap] = useState<MlMap | null>(null);
   const [reports, setReports] = useState<Report[]>(city.reports);
@@ -62,10 +68,8 @@ export default function CityMapApp({ city }: { city: CityData }) {
   const [dialog, setDialog] = useState(false);
   const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState<LngLat | null>(null);
-  const [simIndex, setSimIndex] = useState(0);
   const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
   const [mode, setMode] = useState<Mode>("zgloszenia");
-  const [intake, setIntake] = useState<IntakeScenario | null>(null);
   // Powiadomienia o nowych zgłoszeniach z bazy (inne kanały, symulacja alarmu).
   const [alertIds, setAlertIds] = useState<string[]>([]);
   const [doneSteps, setDoneSteps] = useState<Set<string>>(() => new Set());
@@ -131,14 +135,21 @@ export default function CityMapApp({ city }: { city: CityData }) {
 
   const poll = useCallback(async () => {
     try {
-      announce((await reportsSinceAction(lastSeen.current)).filter((r) => !knownIds.current.has(r.id)));
+      // Baza ma zgłoszenia wszystkich miast — bierzemy tylko te z sektorów tego miasta.
+      const mine = new Set(city.sectors.map((s) => s.id));
+      announce((await reportsSinceAction(lastSeen.current)).filter((r) => !knownIds.current.has(r.id) && !!r.sector && mine.has(r.sector)));
     } catch {
       // Chwilowy brak serwera/bazy — spróbujemy przy następnym cyklu.
     }
-  }, [announce]);
+  }, [announce, city]);
 
   // Szczęśliwa ścieżka na prezentację: alarm z bazy, a gdy serwer lub baza zawiodą — z danych lokalnych.
   const simulateAlarm = useCallback(async () => {
+    // Scenariusz alarmu dzieje się w Krakowie — z innego miasta przechodzimy tam.
+    if (city.slug !== SCRIPTED_CITY) {
+      router.push(`/centrum?miasto=${SCRIPTED_CITY}&alarm=1`);
+      return;
+    }
     try {
       // Serwer bez bazy potrafi wisieć — po 3 s przechodzimy na dane lokalne.
       await Promise.race([simulateAlertAction(), new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 3000))]);
@@ -146,7 +157,7 @@ export default function CityMapApp({ city }: { city: CityData }) {
     } catch {
       announce(localAlertReports(Date.now(), (pos) => sectorOfPoint(pos, city.sectorFeatures)));
     }
-  }, [announce, poll, city]);
+  }, [announce, poll, city, router]);
 
   useEffect(() => {
     const i = setInterval(poll, 4000);
@@ -155,7 +166,9 @@ export default function CityMapApp({ city }: { city: CityData }) {
     window.addEventListener("swimm:simulate-alarm", onAlarm);
     // Przyjście z przycisku alarmu na innej stronie: /centrum?alarm=1.
     if (new URLSearchParams(window.location.search).has("alarm")) {
-      window.history.replaceState(null, "", window.location.pathname);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("alarm");
+      window.history.replaceState(null, "", url);
       t = setTimeout(() => void simulateAlarm(), 300);
     }
     return () => {
@@ -232,56 +245,6 @@ export default function CityMapApp({ city }: { city: CityData }) {
     return saved.id;
   };
 
-  const simulateIntake = (kind: SimKind) => {
-    if (kind === "kamera") return simulate();
-    setMode("zgloszenia");
-    setSelection(null);
-    setIntake(INTAKE_SCENARIOS.find((s) => s.channel === kind) ?? null);
-  };
-
-  const acceptIntake = async (d: IntakeDraft) => {
-    if (!intake) return;
-    const channel = intake.channel;
-    setIntake(null);
-    if (!d.position) {
-      // Bez miejsca w wiadomości dyspozytor wskazuje je na mapie w zwykłym formularzu.
-      setDialog(true);
-      setPicking(true);
-      return;
-    }
-    const id = await addReport({
-      title: d.title,
-      description: d.description,
-      category: d.category,
-      source: channel,
-      position: d.position,
-      blocking: d.blocking,
-      confidence: d.confidence,
-    });
-    setToast({ id, text: `${channel === "telegram" ? "Telegram" : "Telefon"}: przyjęto ${id} · ${CATEGORY_LABEL[d.category]}` });
-    setSelection({ type: "report", id });
-    flyTo(d.position, 14.5);
-  };
-
-  const simulate = async () => {
-    const ev = CAMERA_EVENTS[simIndex % CAMERA_EVENTS.length];
-    setSimIndex((i) => i + 1);
-    const id = await addReport({
-      title: ev.title,
-      description: ev.description,
-      category: ev.category,
-      source: "kamera",
-      position: ev.position,
-      blocking: ev.blocking ?? false,
-      cameraId: ev.cameraId,
-      confidence: ev.confidence ?? 0.85,
-    });
-    setMode("zgloszenia");
-    setToast({ id, text: `Kamera ${ev.cameraId}: ${ev.title}` });
-    setSelection({ type: "report", id });
-    flyTo(ev.position, 14.5);
-  };
-
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 6000);
@@ -326,6 +289,8 @@ export default function CityMapApp({ city }: { city: CityData }) {
     <main className="relative min-h-0 flex-1 overflow-hidden">
       <MapView
         geo={geo}
+        others={geo.others}
+        onCityClick={switchCity}
         showBoundary={layers.boundary}
         showSectors={layers.sectors}
         selectedSector={selectedSector}
@@ -344,6 +309,7 @@ export default function CityMapApp({ city }: { city: CityData }) {
 
       {map && (
         <>
+          <OtherCities map={map} others={others} onCity={switchCity} />
           <MarkerOverlay
             map={map}
             layers={visible}
@@ -363,6 +329,7 @@ export default function CityMapApp({ city }: { city: CityData }) {
           {resources && (
             <FlowOverlay
               map={map}
+              hub={hubFor(city.slug)}
               metric={metric}
               sectors={geo.sectorList}
               readings={readings}
@@ -444,7 +411,8 @@ export default function CityMapApp({ city }: { city: CityData }) {
       )}
 
       <TopBar
-        city={city.name}
+        city={city.slug}
+        cities={cities}
         layers={layers}
         onToggleLayer={(id) => setLayers((l) => ({ ...l, [id]: !l[id] }))}
         sectors={geo.sectorList}
@@ -474,19 +442,6 @@ export default function CityMapApp({ city }: { city: CityData }) {
         />
       )}
 
-      {intake && (
-        <IntakeSimulator
-          key={intake.channel}
-          scenario={intake}
-          places={geo.places}
-          sectorLabel={(pos) => {
-            const id = sectorOf(pos);
-            return id ? `${id} ${geo.sectorList.find((x) => x.id === id)?.name ?? ""}` : "poza dzielnicami";
-          }}
-          onAccept={acceptIntake}
-          onClose={() => setIntake(null)}
-        />
-      )}
 
       {picking && (
         <div className="glass absolute left-1/2 top-20 z-40 -translate-x-1/2 rounded-full px-4 py-2 text-sm">
@@ -550,7 +505,6 @@ export default function CityMapApp({ city }: { city: CityData }) {
           setDialog(true);
           setPicking(true);
         }}
-        onSimulate={simulateIntake}
       />
         )}
       </SidePanel>

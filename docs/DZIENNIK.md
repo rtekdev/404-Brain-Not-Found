@@ -19,6 +19,35 @@
 
 ## Wpisy
 
+### 2026-10-03 — Drugie miasto (Kielce), lista zgłoszeń w wyglądzie mapy
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- Kielce jako drugie miasto (D-03): `database/04-kielce.sql` z danych odzyskanych z git (granica,
+  9 sektorów S01–S09, 109 osiedli, kamery KC, zgłoszenia Z-2xxx, obiekty KA, dostępność KP).
+  Przełącznik w górnym pasku (`/centrum?miasto=`), a po oddaleniu mapy (zoom < 9,5) drugie miasto
+  podświetla się i przełącza po kliknięciu. Obiekty należą do miasta przez sektor; centrala per miasto.
+- Usunięty przycisk „Symuluj" z panelu zgłoszeń (wraz z pokazami Telegrama/telefonu/kamery w UI);
+  zostaje „Symuluj alarm" w górnym pasku — z Kielc przełącza na Kraków.
+- `/reports`, `/reports/[id]`, `/reports/add` w wyglądzie panelu (tokeny, ikony, kolory priorytetu).
+  Naprawione: lista dostawała surowe wiersze bazy (brak pozycji i czasu), a zgłoszenie z formularza nie
+  miało sektora, więc nie trafiało na mapę.
+- Numer kontaktowy ze spacjami; wyjaśnione, że produkcyjny Docker wymaga przebudowy po zmianie kodu.
+
+**Zweryfikowane — jak dokładnie:**
+- TDD: testy wielu miast (lista miast, izolacja danych, zarysy innych miast, centrala Kielc) —
+  czerwone, potem zielone; `npm test` z bazą 78/78; `tsc` i `eslint` czyste.
+- Przeglądarka (obraz produkcyjny): przełączanie Kraków ↔ Kielce z listy i z mapy po oddaleniu;
+  widok zasobów Kielc; `/reports` z filtrem miast, szczegóły Z-2001, formularz w kolorach panelu.
+
+**Świadomie odłożone:**
+- `docs/SCENARIUSZ_DEMO.md` kroki 3 i 5 („Symuluj → Telegram / Telefon") są nieaktualne — przycisku
+  już nie ma; do decyzji człowieka, czym je zastąpić.
+- `components/IntakeSimulator.tsx` i scenariusze w `lib/simulation.ts` nie są już używane w UI
+  (zostają, bo pokrywają je testy) — do decyzji: usunąć albo przywrócić pokazy w innym miejscu.
+- Przy wejściu bezpośrednio przez adres mapa startuje mocno oddalona (było wcześniej).
+
 ### 2026-10-03 — Alarm na prezentację: szczęśliwa ścieżka przy Tauron Arenie
 
 Autor: Claude (Opus) + rtek
