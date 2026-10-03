@@ -1,5 +1,5 @@
 import { unitForCategory } from "./meta";
-import type { AccessPoint, Asset, Camera, Category, Report, Source, Status } from "./types";
+import type { AccessPoint, Asset, Camera, Category, LngLat, Report, Source, Status } from "./types";
 
 // Dane demonstracyjne dla Krakowa. Lokalizacje i nazwy obiektów są prawdziwe, wartości pomiarów
 // i zdarzenia — fikcyjne. Dzielnice (sektory) dopisywane są w kliencie na podstawie geometrii
@@ -44,109 +44,70 @@ interface Seed {
   confidence?: number;
 }
 
+/** Dzielnica pokazowa: jedna prosta historia na prezentację — awaria sieci wodnej w Podgórzu. */
+export const SHOWCASE_SECTOR = "D13";
+
+type S = Omit<Seed, "description"> & { description?: string };
+const seed = (s: S): Seed => ({ description: s.title, ...s });
+
+// Po dwa zgłoszenia na dzielnicę, dzielnica pokazowa (D13) — cztery.
 const SEEDS: Seed[] = [
-  {
-    title: "Drzewo przewrócone na jezdnię",
-    description: "Kamera wykryła powalone drzewo blokujące prawy pas w kierunku centrum.",
-    category: "zielen", source: "kamera", status: "nowe", position: [19.8895, 50.0884],
-    ago: 6, blocking: true, cameraId: "K03", confidence: 0.93, confirmations: 3,
-  },
-  {
-    title: "Kolizja dwóch samochodów",
-    description: "Zatrzymane pojazdy na rondzie, tramwaje stoją w obu kierunkach.",
-    category: "bezpieczenstwo", source: "kamera", status: "przekazane", position: [19.9463, 50.0383],
-    ago: 14, blocking: true, cameraId: "K05", confidence: 0.88, confirmations: 2,
-  },
-  {
-    title: "Wyciek wody z jezdni",
-    description: "Woda wypływa spod asfaltu na Zabłociu, tworzy się rozlewisko przy przystanku.",
-    category: "woda", source: "telefon", status: "nowe", position: [19.9640, 50.0480],
-    ago: 38, confirmations: 4, confidence: 0.82,
-  },
-  {
-    title: "Głęboka dziura w jezdni",
-    description: "Ubytek ok. 40 cm na prawym pasie, samochody omijają po przeciwnym pasie.",
-    category: "drogi", source: "kamera", status: "nowe", position: [19.9563, 50.0887],
-    ago: 52, cameraId: "K06", confidence: 0.91, confirmations: 2,
-  },
-  {
-    title: "Nie działa winda na peron",
-    description: "Osoby na wózkach nie mogą dostać się na peron 2 dworca Kraków Główny.",
-    category: "dostepnosc", source: "aplikacja", status: "nowe", position: [19.9475, 50.0675],
-    ago: 95, blocking: true, confidence: 0.86,
-  },
-  {
-    title: "Awaria sygnalizacji świetlnej",
-    description: "Sygnalizacja miga na żółto na wszystkich wlotach ronda.",
-    category: "drogi", source: "kamera", status: "w_realizacji", position: [19.9368, 50.0480],
-    ago: 70, cameraId: "K04", confidence: 0.84, confirmations: 5,
-  },
-  {
-    title: "Zalana ulica po ulewie",
-    description: "Woda na całej szerokości jezdni, studzienki nie odbierają wody.",
-    category: "woda", source: "kamera", status: "nowe", position: [20.0103, 50.0702],
-    ago: 21, blocking: true, cameraId: "K08", confidence: 0.79,
-  },
-  {
-    title: "Przepełnione kontenery na odpady",
-    description: "Worki leżą obok altany śmietnikowej na os. Na Kozłówce od dwóch dni.",
-    category: "odpady", source: "sms", status: "nowe", position: [20.0165, 50.0205],
-    ago: 180, confirmations: 3, confidence: 0.9,
-  },
-  {
-    title: "Ciemna ulica — nie świecą 4 latarnie",
-    description: "Cały odcinek przy szkole na Kurdwanowie bez oświetlenia po zmroku.",
-    category: "oswietlenie", source: "aplikacja", status: "nowe", position: [19.9650, 50.0090],
-    ago: 300, confirmations: 2, confidence: 0.88,
-  },
-  {
-    title: "Nielegalne wysypisko gruzu",
-    description: "Gruz i opony porzucone przy drodze leśnej w Swoszowicach.",
-    category: "odpady", source: "messenger", status: "nowe", position: [19.9450, 49.9800],
-    ago: 420, confidence: 0.83,
-  },
-  {
-    title: "Uszkodzony podjazd przy przychodni",
-    description: "Pęknięta płyta podjazdu, wózek klinuje się na krawędzi.",
-    category: "dostepnosc", source: "telefon", status: "przekazane", position: [19.9205, 50.0953],
-    ago: 240, confidence: 0.81,
-  },
-  {
-    title: "Zapadnięty chodnik",
-    description: "Zapadlisko przy przejściu dla pieszych, ryzyko potknięcia.",
-    category: "drogi", source: "aplikacja", status: "nowe", position: [19.9150, 50.0720],
-    ago: 130, confidence: 0.77,
-  },
-  {
-    title: "Złamany znak drogowy",
-    description: "Znak ustąp pierwszeństwa leży na trawniku.",
-    category: "drogi", source: "sms", status: "nowe", position: [20.0050, 50.0650],
-    ago: 160, confidence: 0.85,
-  },
-  {
-    title: "Brak przejścia dla wózków — remont",
-    description: "Ogrodzenie remontu zamyka jedyne obniżenie krawężnika przy Plantach.",
-    category: "dostepnosc", source: "aplikacja", status: "nowe", position: [19.9400, 50.0600],
-    ago: 65, blocking: true, confidence: 0.8, confirmations: 2,
-  },
-  {
-    title: "Złamany konar nad chodnikiem",
-    description: "Konar wisi nad ścieżką w parku, może spaść.",
-    category: "zielen", source: "telefon", status: "nowe", position: [20.0200, 50.0980],
-    ago: 110, confidence: 0.87,
-  },
-  {
-    title: "Wymiana lampy zakończona",
-    description: "Latarnia przy przystanku naprawiona.",
-    category: "oswietlenie", source: "aplikacja", status: "zamkniete", position: [19.8900, 50.0560],
-    ago: 900, confidence: 0.92,
-  },
-  {
-    title: "Uszkodzony hydrant",
-    description: "Hydrant przechylony po uderzeniu samochodu, lekki wyciek.",
-    category: "woda", source: "telefon", status: "przekazane", position: [19.8800, 50.0800],
-    ago: 200, confidence: 0.86,
-  },
+  // D01 Stare Miasto
+  seed({ title: "Brak przejścia dla wózków — remont", description: "Ogrodzenie remontu zamyka jedyne obniżenie krawężnika przy Plantach.", category: "dostepnosc", source: "aplikacja", status: "nowe", position: [19.9400, 50.0600], ago: 65, blocking: true, confidence: 0.8, confirmations: 2 }),
+  seed({ title: "Nie działa winda na peron", description: "Osoby na wózkach nie mogą dostać się na peron 2 dworca Kraków Główny.", category: "dostepnosc", source: "aplikacja", status: "nowe", position: [19.9475, 50.0675], ago: 95, blocking: true, confidence: 0.86 }),
+  // D02 Grzegórzki
+  seed({ title: "Awaria sygnalizacji na Rondzie Mogilskim", description: "Sygnalizacja miga na żółto na wszystkich wlotach ronda.", category: "drogi", source: "kamera", status: "w_realizacji", position: [19.9594, 50.0664], ago: 70, cameraId: "K02", confidence: 0.84, confirmations: 5 }),
+  seed({ title: "Śmieci przy Bulwarze Kurlandzkim", description: "Przepełnione kosze, worki leżą na trawniku przy bulwarze.", category: "odpady", source: "sms", status: "nowe", position: [19.9664, 50.0587], ago: 140, confidence: 0.88 }),
+  // D03 Prądnik Czerwony
+  seed({ title: "Ciemna ulica na Rakowicach", description: "Nie świecą 4 latarnie przy szkole, po zmroku całkiem ciemno.", category: "oswietlenie", source: "aplikacja", status: "nowe", position: [19.9764, 50.0754], ago: 300, confirmations: 2, confidence: 0.88 }),
+  seed({ title: "Głęboka dziura w jezdni", description: "Ubytek ok. 40 cm na prawym pasie, samochody omijają po przeciwnym pasie.", category: "drogi", source: "kamera", status: "nowe", position: [19.9563, 50.0887], ago: 52, cameraId: "K06", confidence: 0.91, confirmations: 2 }),
+  // D04 Prądnik Biały
+  seed({ title: "Drzewo przewrócone na jezdnię", description: "Kamera wykryła powalone drzewo blokujące prawy pas w kierunku centrum.", category: "zielen", source: "kamera", status: "nowe", position: [19.8895, 50.0884], ago: 6, blocking: true, cameraId: "K03", confidence: 0.93, confirmations: 3 }),
+  seed({ title: "Uszkodzony podjazd przy przychodni", description: "Pęknięta płyta podjazdu, wózek klinuje się na krawędzi.", category: "dostepnosc", source: "telefon", status: "przekazane", position: [19.9205, 50.0953], ago: 240, confidence: 0.81 }),
+  // D05 Krowodrza
+  seed({ title: "Zapadnięty chodnik na Nowej Wsi", description: "Zapadlisko przy przejściu dla pieszych, ryzyko potknięcia.", category: "drogi", source: "aplikacja", status: "nowe", position: [19.9150, 50.0720], ago: 150, confidence: 0.77 }),
+  seed({ title: "Rozbita wiata przystanku na Łobzowie", description: "Szkło na chodniku przy przystanku, ludzie stoją na jezdni.", category: "bezpieczenstwo", source: "sms", status: "nowe", position: [19.9090, 50.0748], ago: 45, confidence: 0.74 }),
+  // D06 Bronowice
+  seed({ title: "Zarośnięty chodnik w Bronowicach Małych", description: "Krzewy zasłaniają chodnik, piesi schodzą na jezdnię.", category: "zielen", source: "aplikacja", status: "nowe", position: [19.8785, 50.0876], ago: 230, confidence: 0.81 }),
+  seed({ title: "Uszkodzony hydrant", description: "Hydrant przechylony po uderzeniu samochodu, lekki wyciek.", category: "woda", source: "telefon", status: "przekazane", position: [19.8800, 50.0800], ago: 200, confidence: 0.86 }),
+  // D07 Zwierzyniec
+  seed({ title: "Wymiana lampy zakończona", description: "Latarnia przy przystanku naprawiona.", category: "oswietlenie", source: "aplikacja", status: "zamkniete", position: [19.8900, 50.0560], ago: 900, confidence: 0.92 }),
+  seed({ title: "Złamany konar nad ścieżką na Woli Justowskiej", description: "Konar wisi nad ścieżką w parku, może spaść.", category: "zielen", source: "telefon", status: "nowe", position: [19.8700, 50.0660], ago: 110, confidence: 0.87 }),
+  // D08 Dębniki
+  seed({ title: "Dziura na ścieżce rowerowej na Ruczaju", description: "Ubytek nawierzchni na ścieżce wzdłuż Kobierzyńskiej.", category: "drogi", source: "kamera", status: "nowe", position: [19.9152, 50.0258], ago: 85, cameraId: "K10", confidence: 0.85 }),
+  seed({ title: "Śmieci obok altany na Osiedlu Podwawelskim", description: "Kontenery pełne od weekendu, worki leżą obok altany.", category: "odpady", source: "sms", status: "nowe", position: [19.9316, 50.0432], ago: 260, confirmations: 2, confidence: 0.9 }),
+  // D09 Łagiewniki-Borek Fałęcki
+  seed({ title: "Nie świeci oświetlenie przejścia przy Sanktuarium", description: "Przejście dla pieszych bez oświetlenia, kierowcy późno widzą pieszych.", category: "oswietlenie", source: "telefon", status: "nowe", position: [19.9406, 50.0222], ago: 190, confidence: 0.86 }),
+  seed({ title: "Brak podjazdu przy przychodni na Borku", description: "Schody bez rampy, osoba na wózku nie wjedzie do przychodni.", category: "dostepnosc", source: "aplikacja", status: "nowe", position: [19.9278, 50.0138], ago: 400, confidence: 0.8 }),
+  // D10 Swoszowice
+  seed({ title: "Nielegalne wysypisko gruzu", description: "Gruz i opony porzucone przy drodze leśnej w Swoszowicach.", category: "odpady", source: "messenger", status: "nowe", position: [19.9450, 49.9800], ago: 420, confidence: 0.83 }),
+  seed({ title: "Zalana droga w Rajsku", description: "Rów nie odbiera wody, droga zalana na długości 50 m.", category: "woda", source: "telefon", status: "nowe", position: [19.9702, 49.9867], ago: 75, blocking: true, confidence: 0.82 }),
+  // D11 Podgórze Duchackie
+  seed({ title: "Ciemna ulica na Kurdwanowie", description: "Cały odcinek przy szkole bez oświetlenia po zmroku.", category: "oswietlenie", source: "aplikacja", status: "nowe", position: [19.9650, 50.0090], ago: 300, confirmations: 2, confidence: 0.88 }),
+  seed({ title: "Uszkodzona barierka przy przejściu na Woli Duchackiej", description: "Barierka oddzielająca chodnik od jezdni leży na ziemi.", category: "bezpieczenstwo", source: "sms", status: "nowe", position: [19.9615, 50.0202], ago: 160, confidence: 0.76 }),
+  // D12 Bieżanów-Prokocim
+  seed({ title: "Przepełnione kontenery na odpady", description: "Worki leżą obok altany śmietnikowej na os. Na Kozłówce od dwóch dni.", category: "odpady", source: "sms", status: "nowe", position: [20.0165, 50.0205], ago: 180, confirmations: 3, confidence: 0.9 }),
+  seed({ title: "Zerwany kabel oświetlenia na Bieżanowie", description: "Kabel latarni zwisa nad chodnikiem przy przystanku.", category: "oswietlenie", source: "telefon", status: "nowe", position: [20.0296, 50.0140], ago: 35, confidence: 0.84 }),
+  // D13 Podgórze — dzielnica pokazowa: awaria sieci wodnej
+  seed({ title: "Wyciek wody z jezdni", description: "Woda wypływa spod asfaltu na Zabłociu, tworzy się rozlewisko przy przystanku.", category: "woda", source: "telefon", status: "nowe", position: [19.9640, 50.0480], ago: 38, confirmations: 4, confidence: 0.82 }),
+  seed({ title: "Niskie ciśnienie wody w kranach", description: "Na Płaszowie od rana ledwo leci woda, w kilku blokach na wyższych piętrach brak wody.", category: "woda", source: "sms", status: "nowe", position: [19.9935, 50.0395], ago: 50, confirmations: 6, confidence: 0.86 }),
+  seed({ title: "Mokra plama na chodniku przy Lipowej", description: "Chodnik cały czas mokry, mimo że nie padało.", category: "woda", source: "aplikacja", status: "nowe", position: [19.9745, 50.0505], ago: 120, confidence: 0.72 }),
+  seed({ title: "Kolizja dwóch samochodów", description: "Zatrzymane pojazdy na rondzie, tramwaje stoją w obu kierunkach.", category: "bezpieczenstwo", source: "kamera", status: "przekazane", position: [19.9463, 50.0383], ago: 14, blocking: true, cameraId: "K05", confidence: 0.88, confirmations: 2 }),
+  // D14 Czyżyny
+  seed({ title: "Zalana ulica po ulewie", description: "Woda na całej szerokości jezdni, studzienki nie odbierają wody.", category: "woda", source: "kamera", status: "nowe", position: [20.0103, 50.0702], ago: 21, blocking: true, cameraId: "K08", confidence: 0.79 }),
+  seed({ title: "Złamany znak drogowy", description: "Znak ustąp pierwszeństwa leży na trawniku.", category: "drogi", source: "sms", status: "nowe", position: [20.0050, 50.0650], ago: 160, confidence: 0.85 }),
+  // D15 Mistrzejowice
+  seed({ title: "Złamany konar nad chodnikiem", description: "Konar wisi nad chodnikiem przy szkole, może spaść.", category: "zielen", source: "telefon", status: "nowe", position: [20.0175, 50.0990], ago: 110, confidence: 0.87 }),
+  seed({ title: "Zepsuta winda w bloku na Osiedlu Tysiąclecia", description: "Mieszkanka na wózku nie może wyjść z mieszkania na 8. piętrze.", category: "dostepnosc", source: "aplikacja", status: "nowe", position: [20.0024, 50.0911], ago: 90, blocking: true, confidence: 0.83 }),
+  // D16 Bieńczyce
+  seed({ title: "Dzikie wysypisko przy Zalewie Nowohuckim", description: "Meble i worki ze śmieciami porzucone przy alejce nad zalewem.", category: "odpady", source: "messenger", status: "nowe", position: [20.0480, 50.0828], ago: 330, confidence: 0.84 }),
+  seed({ title: "Nie działa sygnalizacja dla pieszych", description: "Przycisk na przejściu nie reaguje, zielone się nie zapala.", category: "drogi", source: "aplikacja", status: "nowe", position: [20.0152, 50.0822], ago: 55, confidence: 0.8 }),
+  // D17 Wzgórza Krzesławickie
+  seed({ title: "Powalone drzewo na drodze w Grębałowie", description: "Drzewo leży w poprzek jezdni po nocnej wichurze.", category: "zielen", source: "telefon", status: "nowe", position: [20.0750, 50.0971], ago: 25, blocking: true, confidence: 0.9 }),
+  seed({ title: "Brak oświetlenia przystanku w Łuczanowicach", description: "Przystanek autobusowy całkowicie ciemny po zmroku.", category: "oswietlenie", source: "sms", status: "nowe", position: [20.1106, 50.1081], ago: 280, confidence: 0.82 }),
+  // D18 Nowa Huta
+  seed({ title: "Uszkodzona nawierzchnia przy Placu Centralnym", description: "Wyrwa w asfalcie przy torowisku, samochody hamują gwałtownie.", category: "drogi", source: "kamera", status: "nowe", position: [20.0368, 50.0716], ago: 40, cameraId: "K07", confidence: 0.87 }),
+  seed({ title: "Zalana piwnica w Mogile", description: "Woda w piwnicach bloku po awarii rury, mieszkańcy proszą o pomoc.", category: "woda", source: "telefon", status: "w_realizacji", position: [20.0627, 50.0621], ago: 210, confidence: 0.85 }),
 ];
 
 export function buildReports(now = Date.now()): Report[] {
@@ -218,5 +179,54 @@ export const CAMERA_EVENTS: Omit<Seed, "status" | "ago" | "source">[] = [
     title: "Rozlewisko na skrzyżowaniu",
     description: "Wykryto zbierającą się wodę na skrzyżowaniu, pojazdy zwalniają.",
     category: "woda", position: [20.0083, 50.0963], cameraId: "K12", confidence: 0.84, blocking: true,
+  },
+];
+
+export interface IntakeLine {
+  who: "mieszkaniec" | "bot";
+  text: string;
+}
+
+/** Scenariusze prezentacji: zgłoszenie przychodzi Telegramem albo telefonem i trafia do dzielnicy pokazowej. */
+export interface IntakeScenario {
+  channel: "telegram" | "telefon";
+  sender: string;
+  /** Przebieg rozmowy pokazywany na ekranie. */
+  lines: IntakeLine[];
+  /** Tekst analizowany przez AI — wiadomość albo słowa mieszkańca z transkrypcji. */
+  text: string;
+  /** Pinezka wysłana z Telegrama. */
+  location?: LngLat;
+  /** Gdzie ma wylądować zgłoszenie — sprawdzane w testach. */
+  expectedPosition: LngLat;
+}
+
+const TELEGRAM_TEXT = "Woda tryska spod asfaltu przy Lipowej na Zabłociu! Zrobiło się jezioro, auta jadą środkiem.";
+const PHONE_TEXT = "Od rana nie mamy wody w całym bloku na Starym Podgórzu. Limanowskiego 24, sąsiedzi też nie mają wody.";
+
+export const INTAKE_SCENARIOS: IntakeScenario[] = [
+  {
+    channel: "telegram",
+    sender: "@ania_zablocie",
+    lines: [
+      { who: "mieszkaniec", text: TELEGRAM_TEXT },
+      { who: "mieszkaniec", text: "📍 Lokalizacja: ul. Lipowa, Zabłocie" },
+    ],
+    text: TELEGRAM_TEXT,
+    location: [19.9752, 50.0498],
+    expectedPosition: [19.9752, 50.0498],
+  },
+  {
+    channel: "telefon",
+    sender: "+48 600 *** 214",
+    lines: [
+      { who: "bot", text: "Centrum zgłoszeń SWIMM, w czym możemy pomóc?" },
+      { who: "mieszkaniec", text: "Od rana nie mamy wody w całym bloku na Starym Podgórzu." },
+      { who: "bot", text: "Proszę podać adres." },
+      { who: "mieszkaniec", text: "Limanowskiego 24, sąsiedzi też nie mają wody." },
+      { who: "bot", text: "Dziękujemy, zgłoszenie przyjęte. Wyślemy SMS z numerem." },
+    ],
+    text: PHONE_TEXT,
+    expectedPosition: [19.9505, 50.0438],
   },
 ];

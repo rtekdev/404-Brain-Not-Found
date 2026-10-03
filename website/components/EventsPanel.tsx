@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, Clock, Plus, Radio, Sparkles, Users, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Clock, Phone, Plus, Radio, Send, Sparkles, Users, Video, X } from "lucide-react";
 import {
   CATEGORY_LABEL,
   PRIORITY_COLOR,
@@ -14,22 +14,26 @@ import {
   unitForCategory,
 } from "@/lib/meta";
 import { CAMERAS } from "@/lib/demo-data";
-import type { Status } from "@/lib/types";
+import type { Sector, Status } from "@/lib/types";
+import { rankSectors, type SectorFilter } from "@/lib/sectors";
 import { CATEGORY_ICON, SOURCE_ICON } from "./icons";
 import CameraFeed from "./CameraFeed";
 import type { ScoredReport } from "./CityMapApp";
 
-type Filter = "otwarte" | "krytyczne" | "zamkniete";
+type Filter = SectorFilter;
+export type SimKind = "kamera" | "telegram" | "telefon";
 
 interface Props {
   reports: ScoredReport[];
   selectedId: string | null;
   sectorFilter: string | null;
   onClearSector: () => void;
+  sectors: Sector[];
+  onSector: (id: string) => void;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, patch: { status?: Status; unitId?: string | null }) => void;
   onNewReport: () => void;
-  onSimulate: () => void;
+  onSimulate: (kind: SimKind) => void;
   now: number;
 }
 
@@ -162,6 +166,10 @@ function Detail({ r, onBack, onUpdate, now }: { r: ScoredReport; onBack: () => v
 
 export default function EventsPanel(p: Props) {
   const [filter, setFilter] = useState<Filter>("otwarte");
+  const [simOpen, setSimOpen] = useState(false);
+  // Widok całego miasta: zamiast listy zgłoszeń — ranking dzielnic.
+  const cityView = !p.sectorFilter;
+  const rows = cityView ? rankSectors(p.reports, p.sectors, filter) : [];
   const selected = p.reports.find((r) => r.id === p.selectedId);
 
   const inScope = p.reports.filter((r) => !p.sectorFilter || r.sector === p.sectorFilter);
@@ -223,6 +231,51 @@ export default function EventsPanel(p: Props) {
             </div>
           </div>
 
+          {cityView ? (
+            <ul className="scroll-thin min-h-0 flex-1 divide-y divide-line/60 overflow-y-auto" aria-label="Dzielnice">
+              {rows.length === 0 && <li className="p-6 text-center text-sm text-subtle">Żadna dzielnica nie ma zgłoszeń w tym widoku.</li>}
+              {rows.map((s) => {
+                const tone = s.critical > 0 ? PRIORITY_COLOR.krytyczny : s.open > 0 ? PRIORITY_COLOR.wysoki : "#6b7180";
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => p.onSector(s.id)}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-panel-hover"
+                    >
+                      <span className="w-10 shrink-0 rounded border border-accent/70 bg-[#2a1f4d] py-0.5 text-center text-xs font-semibold text-accent-ink">
+                        {s.id}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{s.name}</span>
+                        <span className="mt-0.5 flex items-center gap-2.5 text-xs text-subtle">
+                          {filter === "zamkniete" ? (
+                            <span>zamknięte: {s.closed}</span>
+                          ) : (
+                            <>
+                              <span>otwarte: {s.open}</span>
+                              {s.critical > 0 && (
+                                <span className="font-semibold" style={{ color: PRIORITY_COLOR.krytyczny }}>
+                                  krytyczne: {s.critical}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </span>
+                      </span>
+                      {filter !== "zamkniete" && (
+                        <span className="text-right">
+                          <span className="block text-base font-semibold tabular-nums" style={{ color: tone }}>{s.topScore || "—"}</span>
+                          <span className="block text-[10px] text-subtle">maks. priorytet</span>
+                        </span>
+                      )}
+                      <ChevronRight size={16} className="shrink-0 text-subtle" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
           <ul className="scroll-thin min-h-0 flex-1 divide-y divide-line/60 overflow-y-auto">
             {list.length === 0 && <li className="p-6 text-center text-sm text-subtle">Brak zgłoszeń w tym widoku.</li>}
             {list.map((r) => {
@@ -263,15 +316,41 @@ export default function EventsPanel(p: Props) {
               );
             })}
           </ul>
+          )}
 
-          <div className="grid grid-cols-2 gap-2 border-t border-line p-3">
+          <div className="relative grid grid-cols-2 gap-2 border-t border-line p-3">
+            {simOpen && (
+              <div role="menu" className="glass animate-slide-in absolute bottom-14 left-3 z-10 w-56 rounded-xl p-1.5">
+                {([
+                  { kind: "kamera", label: "Kamera wykrywa zdarzenie", icon: <Video size={15} aria-hidden /> },
+                  { kind: "telegram", label: "Wiadomość z Telegrama", icon: <Send size={15} aria-hidden /> },
+                  { kind: "telefon", label: "Telefon od mieszkańca", icon: <Phone size={15} aria-hidden /> },
+                ] as const).map((o) => (
+                  <button
+                    key={o.kind}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setSimOpen(false);
+                      p.onSimulate(o.kind);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-panel-hover"
+                  >
+                    <span className="text-accent-soft">{o.icon}</span>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <button
               type="button"
-              onClick={p.onSimulate}
+              aria-expanded={simOpen}
+              onClick={() => setSimOpen((o) => !o)}
               className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-line text-sm hover:bg-panel-hover"
-              title="Demo: orkiestrator kamer tworzy zgłoszenie"
+              title="Demo: zgłoszenie z kamery, Telegrama albo telefonu"
             >
-              <Radio size={15} aria-hidden /> Symuluj kamerę
+              <Radio size={15} aria-hidden /> Symuluj
+              <ChevronDown size={14} className={`text-muted transition ${simOpen ? "rotate-180" : ""}`} aria-hidden />
             </button>
             <button
               type="button"

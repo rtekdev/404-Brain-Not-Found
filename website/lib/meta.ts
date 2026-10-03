@@ -1,6 +1,19 @@
 import type { AccessKind, AssetKind, Category, Priority, Source, Status, Unit } from "./types";
 
-export const APP_NAME = "Puls Miasta";
+export const APP_NAME = "SWIMM";
+export const APP_FULL_NAME = "System Wspierania i Monitorowania Miasta";
+
+// Dane kontaktowe dla mieszkańców. Numery pokazowe — do podmiany na prawdziwe przed wdrożeniem.
+export const CONTACT = {
+  phone: "+48 12 345 67 89",
+  sms: "+48 12 345 67 89",
+  telegram: "SwimmKrakowBot",
+  emergency: "112",
+};
+
+export function telHref(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   drogi: "Drogi i chodniki",
@@ -19,6 +32,7 @@ export const SOURCE_LABEL: Record<Source, string> = {
   sms: "SMS",
   aplikacja: "Aplikacja",
   messenger: "Messenger",
+  telegram: "Telegram",
 };
 
 export const STATUS_LABEL: Record<Status, string> = {

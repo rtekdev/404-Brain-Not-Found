@@ -1,4 +1,4 @@
-# 404 Brain Not Found — „Puls Miasta", platforma SMART CITY dla urzędów (HackYeah)
+# 404 Brain Not Found — „SWIMM", platforma SMART CITY dla urzędów (HackYeah)
 
 ## Rytuał startu sesji
 

@@ -10,7 +10,7 @@ export type Category =
   | "bezpieczenstwo"
   | "inne";
 
-export type Source = "kamera" | "telefon" | "sms" | "aplikacja" | "messenger";
+export type Source = "kamera" | "telefon" | "sms" | "aplikacja" | "messenger" | "telegram";
 
 export type Status = "nowe" | "przekazane" | "w_realizacji" | "zamkniete";
 
