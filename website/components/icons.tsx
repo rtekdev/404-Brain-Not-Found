@@ -5,12 +5,15 @@ import {
   Construction,
   Container,
   Droplets,
+  Factory,
+  Flame,
   Lightbulb,
   MessageCircle,
   MessageSquare,
   Phone,
   PlugZap,
   ShieldAlert,
+  SunMedium,
   Smartphone,
   Trash2,
   TreePine,
@@ -18,9 +21,10 @@ import {
   Truck,
   Video,
   Waves,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
-import type { AccessKind, AssetKind, Category, Source } from "@/lib/types";
+import type { AccessKind, AssetKind, Category, Metric, Source } from "@/lib/types";
 
 export const CATEGORY_ICON: Record<Category, LucideIcon> = {
   drogi: Construction,
@@ -48,6 +52,16 @@ export const ASSET_ICON: Record<AssetKind, LucideIcon> = {
   trafostacja: PlugZap,
   ladowarka: BatteryCharging,
   sprzet: Truck,
+  fotowoltaika: SunMedium,
+  elektrocieplownia: Factory,
+  spalarnia: Flame,
+};
+
+export const METRIC_ICON: Record<Metric, LucideIcon> = {
+  energia: Zap,
+  woda: Droplets,
+  odpady: Trash2,
+  cieplo: Flame,
 };
 
 export const ACCESS_ICON: Record<AccessKind, LucideIcon> = {

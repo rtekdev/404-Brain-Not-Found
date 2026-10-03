@@ -162,7 +162,6 @@ function Detail({ r, onBack, onUpdate, now }: { r: ScoredReport; onBack: () => v
 
 export default function EventsPanel(p: Props) {
   const [filter, setFilter] = useState<Filter>("otwarte");
-  const [collapsed, setCollapsed] = useState(false);
   const selected = p.reports.find((r) => r.id === p.selectedId);
 
   const inScope = p.reports.filter((r) => !p.sectorFilter || r.sector === p.sectorFilter);
@@ -175,21 +174,13 @@ export default function EventsPanel(p: Props) {
   const fromCameras = open.filter((r) => r.source === "kamera").length;
 
   return (
-    <aside
-      aria-label="Zdarzenia w mieście"
-      className={`glass absolute inset-x-3 bottom-3 z-20 flex flex-col overflow-hidden rounded-xl transition-[max-height] sm:inset-x-auto sm:bottom-3 sm:right-3 sm:top-3 sm:w-[380px] sm:max-h-none ${
-        collapsed ? "max-h-14" : "max-h-[60vh]"
-      }`}
-    >
+    <div className="flex min-h-0 flex-1 flex-col">
       {selected ? (
         <Detail r={selected} now={p.now} onBack={() => p.onSelect(null)} onUpdate={p.onUpdate} />
       ) : (
         <>
           <div className="border-b border-line px-4 pb-3 pt-3.5">
             <div className="flex items-center gap-2">
-              <button type="button" className="sm:hidden" onClick={() => setCollapsed((c) => !c)} aria-label="Zwiń panel">
-                <ChevronDown size={18} className={collapsed ? "rotate-180" : ""} aria-hidden />
-              </button>
               <h2 className="font-semibold">Najważniejsze teraz</h2>
               <span className="flex items-center gap-1 rounded-md bg-accent/15 px-1.5 py-0.5 text-[11px] font-medium text-accent-soft">
                 <Sparkles size={11} aria-hidden /> priorytet AI
@@ -292,6 +283,6 @@ export default function EventsPanel(p: Props) {
           </div>
         </>
       )}
-    </aside>
+    </div>
   );
 }

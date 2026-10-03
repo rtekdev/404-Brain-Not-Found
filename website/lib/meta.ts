@@ -49,6 +49,9 @@ export const ASSET_LABEL: Record<AssetKind, string> = {
   trafostacja: "Stacja transformatorowa",
   ladowarka: "Ładowarka EV",
   sprzet: "Sprzęt miejski",
+  fotowoltaika: "Farma fotowoltaiczna",
+  elektrocieplownia: "Elektrociepłownia",
+  spalarnia: "Spalarnia odpadów (ZTPO)",
 };
 
 export const ACCESS_LABEL: Record<AccessKind, string> = {

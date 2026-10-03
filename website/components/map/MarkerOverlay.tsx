@@ -21,6 +21,8 @@ interface Props {
   draft: LngLat | null;
   onSelect: (s: Selection) => void;
   onSectorClick: (id: string) => void;
+  /** Widok zasobów: obiekty zawsze pełnej wielkości, te bez pomiaru wybranej miary wyszarzone. */
+  assetFocus?: (a: Asset) => boolean;
 }
 
 export default function MarkerOverlay(props: Props) {
@@ -55,6 +57,8 @@ export default function MarkerOverlay(props: Props) {
         props.assets.map((a) => {
           const Icon = ASSET_ICON[a.kind];
           const warn = a.level >= 85 && a.kind !== "sprzet" && a.kind !== "ladowarka";
+          const small = compact && !props.assetFocus;
+          const faded = props.assetFocus && !props.assetFocus(a);
           return (
             <MapAnchor key={a.id} map={map} at={a.position} z={2}>
               <button
@@ -62,12 +66,12 @@ export default function MarkerOverlay(props: Props) {
                 aria-label={`${a.name}, ${a.levelLabel}`}
                 onClick={() => props.onSelect({ type: "asset", id: a.id })}
                 className={`grid place-items-center border bg-[#10262b] transition hover:scale-110 ${
-                  compact ? "size-3 rounded-sm" : "size-7 rounded-md"
+                  small ? "size-3 rounded-sm" : "size-7 rounded-md"
                 } ${warn ? "border-amber-400 text-amber-300" : "border-cyan/60 text-cyan"} ${
                   isSel("asset", a.id) ? "ring-2 ring-white" : ""
-                }`}
+                } ${faded ? "opacity-35" : ""}`}
               >
-                {!compact && <Icon size={14} aria-hidden />}
+                {!small && <Icon size={14} aria-hidden />}
               </button>
             </MapAnchor>
           );

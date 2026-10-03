@@ -65,7 +65,19 @@ export type AssetKind =
   | "kontenery"
   | "trafostacja"
   | "ladowarka"
-  | "sprzet";
+  | "sprzet"
+  | "fotowoltaika"
+  | "elektrocieplownia"
+  | "spalarnia";
+
+export type Metric = "energia" | "woda" | "odpady" | "cieplo";
+
+/** Pomiar obiektu dla jednej miary (wartości bazowe; na żywo wahają się wokół nich). */
+export interface Meter {
+  metric: Metric;
+  primary: number;
+  secondary: number;
+}
 
 export interface Asset {
   id: string;
@@ -77,6 +89,7 @@ export interface Asset {
   /** Stan 0–100 (zapełnienie, obciążenie, sprawność). */
   level: number;
   levelLabel: string;
+  meters?: Meter[];
 }
 
 export type AccessKind = "winda" | "podjazd" | "toaleta" | "przeszkoda";
