@@ -1,6 +1,9 @@
 node_modules
 .next
 .git
-Dockerfile
+Dockerfile*
 docker-compose*.yml
+nginx
+public/maplibre
+*.tsbuildinfo
 .env*
