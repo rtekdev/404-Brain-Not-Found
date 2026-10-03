@@ -7,6 +7,16 @@ Rejestr startuje pusty, bo projekt przeszedł adopcję 2026-10-03: rozstrzygnię
 w `CLAUDE.md`, w sekcji „Zasady projektu (odziedziczone)". Każde rozstrzygnięcie podjęte po adopcji
 zapisuje się tutaj jako `D-NN`.
 
+## D-03 — Kielce wracają jako drugie miasto, z przełącznikiem miast
+
+Data: 2026-10-03 · Decyzja człowieka · Zmienia D-01
+
+Na mapie urzędu można przełączać miasto (Kraków ↔ Kielce) w górnym pasku; adres `/centrum?miasto=kielce`.
+Kraków zostaje miastem domyślnym i jedynym ze scenariuszami Telegrama, telefonu i alarmu (dzielnica
+pokazowa D13) — w Kielcach działa tylko pokaz kamery, a „Symuluj alarm" przełącza na Kraków. Dane Kielc
+(`database/04-kielce.sql`) odzyskane z historii git: granica i osiedla z OSM, 9 umownych sektorów S01–S09
+(Kielce nie mają dzielnic), kamery, zgłoszenia i obiekty fikcyjne. Obiekty należą do miasta przez sektor.
+
 ## D-02 — Tylko zadanie SMART CITY, nazwa SWIMM, Telegram zamiast Messengera
 
 Data: 2026-10-03 · Decyzja człowieka

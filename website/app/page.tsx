@@ -3,27 +3,28 @@ import HelpChat from "@/components/HelpChat";
 import { APP_FULL_NAME, CONTACT, telHref } from "@/lib/meta";
 
 const linkClass =
-  "flex items-center gap-2 rounded-lg border border-line bg-panel-solid px-3 py-2 hover:bg-panel-hover";
+  "flex h-full items-center justify-center gap-2 rounded-lg border border-line bg-panel-solid px-2 py-2 hover:bg-panel-hover";
 
 
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
-      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4">
+      {/* m-auto: całość wyśrodkowana w pionie; przy rozwiniętym czacie strona się przewija. */}
+      <div className="m-auto flex w-full max-w-xl flex-col gap-4">
         <h1 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">{APP_FULL_NAME}</h1>
 
         <a
           href={telHref(CONTACT.phone)}
-          className="flex items-center justify-center gap-3 rounded-xl bg-accent px-5 py-4 text-2xl font-semibold text-white hover:bg-accent-soft sm:text-3xl"
+          className="flex items-center justify-center gap-2.5 whitespace-nowrap rounded-xl bg-accent px-4 py-4 text-[clamp(1.25rem,6.5vw,1.875rem)] font-semibold text-white hover:bg-accent-soft sm:gap-3 sm:px-5"
         >
-          <Phone size={28} aria-hidden />
+          <Phone className="size-6 shrink-0 sm:size-7" aria-hidden />
           <span>
             <span className="sr-only">Zadzwoń: </span>
             {CONTACT.phone}
           </span>
         </a>
 
-        <ul className="grid gap-2 text-sm sm:grid-cols-3">
+        <ul className="grid grid-cols-3 gap-2 text-sm">
           <li>
             <a href={`sms:${CONTACT.sms.replace(/[^\d+]/g, "")}`} className={linkClass}>
               <MessageSquare size={16} className="text-cyan" aria-hidden /> SMS
@@ -36,7 +37,8 @@ export default function Home() {
           </li>
           <li>
             <a href={telHref(CONTACT.emergency)} className={linkClass}>
-              <Siren size={16} className="text-rose-400" aria-hidden /> Zagrożenie życia: {CONTACT.emergency}
+              <Siren size={16} className="shrink-0 text-rose-400" aria-hidden />
+              <span><span className="hidden sm:inline">Zagrożenie życia: </span>{CONTACT.emergency}</span>
             </a>
           </li>
         </ul>

@@ -5,6 +5,7 @@ import { Bell, Check, ChevronDown, MapPin, Siren, Sparkles, Video, X } from "luc
 import { PRIORITY_COLOR, PRIORITY_LABEL } from "@/lib/meta";
 import type { Alert, Plan, Step } from "@/lib/response";
 import type { ScoredReport } from "./CityMapApp";
+import ClipPreview from "./ClipPreview";
 
 const TONE: Record<Plan["status"]["tone"], string> = {
   external: "bg-sky-500/15 text-sky-300",
@@ -101,6 +102,7 @@ export default function AlertCenter({ alert, plans, done, onStep, onShow, onDism
                 </span>
               )}
             </div>
+            {lead.cameraId && <ClipPreview cameraId={lead.cameraId} label={lead.title} />}
             <button type="button" onClick={onDismiss} aria-label="Zamknij komunikat" className="rounded p-1 text-muted hover:bg-white/10 hover:text-foreground">
               <X size={16} aria-hidden />
             </button>

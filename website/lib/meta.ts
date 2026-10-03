@@ -1,12 +1,20 @@
-import type { AccessKind, AssetKind, Category, Priority, Source, Status, Unit } from "./types";
+import type {
+  AccessKind,
+  AssetKind,
+  Category,
+  Priority,
+  Source,
+  Status,
+  Unit,
+} from "./types";
 
 export const APP_NAME = "SWIMM";
 export const APP_FULL_NAME = "System Wspierania i Monitorowania Miasta";
 
 // Dane kontaktowe dla mieszkańców. Numery pokazowe — do podmiany na prawdziwe przed wdrożeniem.
 export const CONTACT = {
-  phone: "+48 12 345 67 89",
-  sms: "+48 12 345 67 89",
+  phone: "+44 20 4577 0273",
+  sms: "+44 20 4577 0273",
   telegram: "SwimmKrakowBot",
   emergency: "112",
 };
@@ -77,12 +85,37 @@ export const ACCESS_LABEL: Record<AccessKind, string> = {
 
 export const UNITS: Unit[] = [
   { id: "drogi", name: "Zarząd Dróg", short: "Drogi", categories: ["drogi"] },
-  { id: "zielen", name: "Zieleń Miejska", short: "Zieleń", categories: ["zielen"] },
+  {
+    id: "zielen",
+    name: "Zieleń Miejska",
+    short: "Zieleń",
+    categories: ["zielen"],
+  },
   { id: "woda", name: "Wodociągi", short: "Wodociągi", categories: ["woda"] },
-  { id: "odpady", name: "Gospodarka Odpadami", short: "Odpady", categories: ["odpady"] },
-  { id: "energia", name: "Oświetlenie i Energia", short: "Energia", categories: ["oswietlenie"] },
-  { id: "dostepnosc", name: "Zespół ds. Dostępności", short: "Dostępność", categories: ["dostepnosc"] },
-  { id: "kryzys", name: "Centrum Zarządzania Kryzysowego", short: "Kryzysowe", categories: ["bezpieczenstwo", "inne"] },
+  {
+    id: "odpady",
+    name: "Gospodarka Odpadami",
+    short: "Odpady",
+    categories: ["odpady"],
+  },
+  {
+    id: "energia",
+    name: "Oświetlenie i Energia",
+    short: "Energia",
+    categories: ["oswietlenie"],
+  },
+  {
+    id: "dostepnosc",
+    name: "Zespół ds. Dostępności",
+    short: "Dostępność",
+    categories: ["dostepnosc"],
+  },
+  {
+    id: "kryzys",
+    name: "Centrum Zarządzania Kryzysowego",
+    short: "Kryzysowe",
+    categories: ["bezpieczenstwo", "inne"],
+  },
 ];
 
 export function unitForCategory(c: Category): Unit {

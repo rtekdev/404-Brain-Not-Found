@@ -15,8 +15,14 @@ export interface CityGeo {
   sectors: FeatureCollection<Polygon | MultiPolygon>;
 }
 
+/** Poniżej tego zoomu widać zarysy pozostałych miast — kliknięcie przełącza miasto. */
+export const SWITCH_ZOOM = 9.5;
+
 interface Props {
   geo: CityGeo;
+  /** Pozostałe miasta: { slug, name } w properties. */
+  others: FeatureCollection<Polygon | MultiPolygon, { slug: string; name: string }>;
+  onCityClick: (slug: string) => void;
   showBoundary: boolean;
   showSectors: boolean;
   selectedSector: string | null;
@@ -122,6 +128,22 @@ export default function MapView(props: Props) {
       map.addLayer({ id: "boundary-glow", type: "line", source: "boundary", paint: { "line-color": "#c4b5fd", "line-width": 9, "line-blur": 7, "line-opacity": 0.45 } });
       map.addLayer({ id: "boundary-line", type: "line", source: "boundary", paint: { "line-color": "#ede9fe", "line-width": 2 } });
 
+      // Inne miasta — nad maską, widoczne dopiero po oddaleniu (maxzoom), podświetlane pod kursorem.
+      map.addSource("others", { type: "geojson", data: live.current.others, promoteId: "slug" });
+      const hoverOr = (on: number, off: number) => ["case", ["boolean", ["feature-state", "hover"], false], on, off];
+      map.addLayer({ id: "others-fill", type: "fill", source: "others", maxzoom: SWITCH_ZOOM, paint: { "fill-color": "#8b5cf6", "fill-opacity": hoverOr(0.32, 0.12) as never } });
+      map.addLayer({ id: "others-line", type: "line", source: "others", maxzoom: SWITCH_ZOOM, paint: { "line-color": "#c4b5fd", "line-width": hoverOr(2, 1.2) as never, "line-opacity": hoverOr(1, 0.6) as never, "line-dasharray": [2, 1.5] } });
+
+      let hoveredCity: string | null = null;
+      const setCityHover = (slug: string | null) => {
+        if (hoveredCity) map.setFeatureState({ source: "others", id: hoveredCity }, { hover: false });
+        if (slug) map.setFeatureState({ source: "others", id: slug }, { hover: true });
+        hoveredCity = slug;
+        map.getCanvas().style.cursor = slug ? "pointer" : live.current.picking ? "crosshair" : "";
+      };
+      map.on("mousemove", "others-fill", (e) => setCityHover((e.features?.[0]?.id as string | undefined) ?? null));
+      map.on("mouseleave", "others-fill", () => setCityHover(null));
+
       let hovered: string | null = null;
       map.on("mousemove", "sectors-fill", (e) => {
         const id = e.features?.[0]?.id as string | undefined;
@@ -141,6 +163,11 @@ export default function MapView(props: Props) {
       const p = live.current;
       if (p.picking) {
         p.onPick([e.lngLat.lng, e.lngLat.lat]);
+        return;
+      }
+      const city = map.getLayer("others-fill") && map.queryRenderedFeatures(e.point, { layers: ["others-fill"] })[0];
+      if (city) {
+        p.onCityClick(city.id as string);
         return;
       }
       if (!p.showSectors) return;
