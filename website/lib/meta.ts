@@ -13,8 +13,8 @@ export const APP_FULL_NAME = "System Wspierania i Monitorowania Miasta";
 
 // Dane kontaktowe dla mieszkańców. Numery pokazowe — do podmiany na prawdziwe przed wdrożeniem.
 export const CONTACT = {
-  phone: "+442045770273",
-  sms: "+442045770273",
+  phone: "+44 20 4577 0273",
+  sms: "+44 20 4577 0273",
   telegram: "SwimmKrakowBot",
   emergency: "112",
 };
