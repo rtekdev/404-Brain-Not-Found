@@ -9,14 +9,16 @@ import MapView, { boundsOf, type CityGeo } from "./map/MapView";
 import MarkerOverlay from "./map/MarkerOverlay";
 import MapPopup from "./map/MapPopup";
 import TopBar, { LAYER_DEFS, type LayerId } from "./TopBar";
-import EventsPanel from "./EventsPanel";
+import EventsPanel, { type SimKind } from "./EventsPanel";
+import IntakeSimulator from "./IntakeSimulator";
+import type { IntakeDraft } from "@/lib/intake";
 import ResourcesPanel from "./ResourcesPanel";
 import SidePanel, { type Mode } from "./SidePanel";
 import FlowOverlay from "./map/FlowOverlay";
 import ReportDialog from "./ReportDialog";
 import CameraFeed from "./CameraFeed";
 import { Legend, ZoomControls } from "./Legend";
-import { ACCESS_POINTS, ASSETS, CAMERAS, CAMERA_EVENTS, buildReports } from "@/lib/demo-data";
+import { ACCESS_POINTS, ASSETS, CAMERAS, CAMERA_EVENTS, INTAKE_SCENARIOS, buildReports, type IntakeScenario } from "@/lib/demo-data";
 import { classify } from "@/lib/classify";
 import { scoreReport, type PriorityResult } from "@/lib/priority";
 import { ACCESS_LABEL, ASSET_LABEL, CATEGORY_LABEL, unitById, unitForCategory } from "@/lib/meta";
@@ -79,6 +81,7 @@ export default function CityMapApp() {
   const [simIndex, setSimIndex] = useState(0);
   const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
   const [mode, setMode] = useState<Mode>("zgloszenia");
+  const [intake, setIntake] = useState<IntakeScenario | null>(null);
   const [metric, setMetric] = useState<Metric>("energia");
   const [t, setT] = useState(() => Date.now());
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -162,6 +165,40 @@ export default function CityMapApp() {
     setReports((rs) => [{ ...r, id, createdAt: Date.now(), sector: null }, ...rs]);
     setNow(Date.now());
     return id;
+  };
+
+  const simulateIntake = (kind: SimKind) => {
+    if (kind === "kamera") return simulate();
+    setMode("zgloszenia");
+    setSelection(null);
+    setIntake(INTAKE_SCENARIOS.find((s) => s.channel === kind) ?? null);
+  };
+
+  const acceptIntake = (d: IntakeDraft) => {
+    if (!intake) return;
+    const channel = intake.channel;
+    setIntake(null);
+    if (!d.position) {
+      // Bez miejsca w wiadomości dyspozytor wskazuje je na mapie w zwykłym formularzu.
+      setDialog(true);
+      setPicking(true);
+      return;
+    }
+    const id = addReport({
+      title: d.title,
+      description: d.description,
+      category: d.category,
+      source: channel,
+      status: "nowe",
+      position: d.position,
+      unitId: null,
+      confirmations: 1,
+      blocking: d.blocking,
+      confidence: d.confidence,
+    });
+    setToast({ id, text: `${channel === "telegram" ? "Telegram" : "Telefon"}: przyjęto ${id} · ${CATEGORY_LABEL[d.category]}` });
+    setSelection({ type: "report", id });
+    flyTo(d.position, 14.5);
   };
 
   const simulate = () => {
@@ -387,6 +424,20 @@ export default function CityMapApp() {
         />
       )}
 
+      {intake && (
+        <IntakeSimulator
+          key={intake.channel}
+          scenario={intake}
+          places={geo.places}
+          sectorLabel={(pos) => {
+            const id = sectorOf(pos);
+            return id ? `${id} ${geo.sectorList.find((x) => x.id === id)?.name ?? ""}` : "poza dzielnicami";
+          }}
+          onAccept={acceptIntake}
+          onClose={() => setIntake(null)}
+        />
+      )}
+
       {picking && (
         <div className="glass absolute left-1/2 top-20 z-40 -translate-x-1/2 rounded-full px-4 py-2 text-sm">
           Kliknij na mapie, gdzie jest problem
@@ -439,6 +490,8 @@ export default function CityMapApp() {
         selectedId={selection?.type === "report" ? selection.id : null}
         sectorFilter={selectedSector}
         onClearSector={() => selectSector(null)}
+        sectors={geo.sectorList}
+        onSector={(id) => selectSector(id)}
         onSelect={(id) => select(id ? { type: "report", id } : null)}
         onUpdate={updateReport}
         onNewReport={() => {
@@ -446,7 +499,7 @@ export default function CityMapApp() {
           setDialog(true);
           setPicking(true);
         }}
-        onSimulate={simulate}
+        onSimulate={simulateIntake}
       />
         )}
       </SidePanel>

@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Phone,
   PlugZap,
+  Send,
   ShieldAlert,
   SunMedium,
   Smartphone,
@@ -43,6 +44,7 @@ export const SOURCE_ICON: Record<Source, LucideIcon> = {
   sms: MessageSquare,
   aplikacja: Smartphone,
   messenger: MessageCircle,
+  telegram: Send,
 };
 
 export const ASSET_ICON: Record<AssetKind, LucideIcon> = {

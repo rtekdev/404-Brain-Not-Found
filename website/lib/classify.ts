@@ -4,7 +4,7 @@ import type { Category } from "./types";
 // Docelowo: ta sama sygnatura, wywołanie LM po stronie serwera.
 
 const KEYWORDS: Record<Exclude<Category, "inne">, string[]> = {
-  drogi: ["dziur", "asfalt", "krawężnik", "znak", "sygnaliz", "światła", "nawierzchni", "ubytek", "zapadl"],
+  drogi: ["dziur", "krawężnik", "znak", "sygnaliz", "światła", "nawierzchni", "ubytek", "zapadl"],
   zielen: ["drzew", "konar", "gałę", "krzew", "trawnik", "park", "liści", "korzeń"],
   woda: ["wod", "wyciek", "rur", "kanaliz", "zalan", "zalew", "hydrant", "ściek", "powódź", "kałuż"],
   odpady: ["śmieci", "smieci", "odpad", "kontener", "kosz", "wysypisk", "gruz", "worki"],
@@ -15,7 +15,7 @@ const KEYWORDS: Record<Exclude<Category, "inne">, string[]> = {
 
 // Słowa opisujące miejsce, a nie problem — ważą mniej niż obiekt zgłoszenia.
 const LOCATION_HINTS: Partial<Record<Category, string[]>> = {
-  drogi: ["jezdni", "chodnik", "ulic", "drog", "przejści"],
+  drogi: ["jezdni", "chodnik", "ulic", "drog", "przejści", "asfalt"],
 };
 
 const BLOCKING = ["blokuj", "zablok", "nieprzejezd", "nie da się przejść", "nie da sie przejsc", "zamknięt", "całą jezdni", "cala jezdni", "na jezdnię", "na jezdni"];

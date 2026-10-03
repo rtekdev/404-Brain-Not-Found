@@ -1,4 +1,4 @@
-# DESIGN — 404 Brain Not Found („Puls Miasta")
+# DESIGN — 404 Brain Not Found („SWIMM")
 
 Stan na: 2026-10-03
 

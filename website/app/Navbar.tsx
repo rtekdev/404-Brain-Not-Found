@@ -3,7 +3,7 @@ import { Activity } from "lucide-react";
 import { APP_NAME } from "@/lib/meta";
 
 const LINKS = [
-  { href: "/", label: "Mapa" },
+  { href: "/centrum", label: "Centrum" },
   { href: "/reports", label: "Zgłoszenia" },
 ];
 
