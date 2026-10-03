@@ -38,7 +38,7 @@ export default function Reports({
     <div>
       {reports.map((report, i) => {
         const s = styles[report.priority];
-        
+
         return (
           <div key={report.id}>
             <div
@@ -53,7 +53,7 @@ export default function Reports({
                 </span>
               </div>
 
-              <h2 className="text-lg font-semibold text-white">{report.title}</h2>
+              <h2 className="text-lg font-semibold text-white">{report.name}</h2>
 
               <Link
                 href={`/reports/${report.id}`}

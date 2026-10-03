@@ -4,14 +4,14 @@ import type { Report } from "../common/types/reports";
 
 export async function getReports(): Promise<Report[]> {
   const { rows } = await db.query<Report>(
-    "SELECT id, title, location, priority, metadata FROM reports ORDER BY id"
+    "SELECT * FROM reports ORDER BY id"
   );
   return rows;
 }
 
 export async function getReportById(id: number): Promise<Report | null> {
   const { rows } = await db.query<Report>(
-    "SELECT id, title, location, priority, metadata FROM reports WHERE id = $1",
+    "SELECT * FROM reports WHERE id = $1",
     [id]
   );
   return rows[0] ?? null;
