@@ -90,8 +90,27 @@ body {
   animation: slide-in 0.25s ease-out;
 }
 
+/* Przepływ zasobów — kropki płynące wzdłuż łuku do celu. */
+@keyframes flow-dash {
+  to { stroke-dashoffset: -28; }
+}
+.flow-dash {
+  animation: flow-dash 2s linear infinite;
+}
+
+.hub-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marker-pulse::after,
+  .hub-pulse::after,
+  .flow-dash,
   .animate-slide-in {
     animation: none;
   }

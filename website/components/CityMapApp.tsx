@@ -10,6 +10,9 @@ import MarkerOverlay from "./map/MarkerOverlay";
 import MapPopup from "./map/MapPopup";
 import TopBar, { LAYER_DEFS, type LayerId } from "./TopBar";
 import EventsPanel from "./EventsPanel";
+import ResourcesPanel from "./ResourcesPanel";
+import SidePanel, { type Mode } from "./SidePanel";
+import FlowOverlay from "./map/FlowOverlay";
 import ReportDialog from "./ReportDialog";
 import CameraFeed from "./CameraFeed";
 import { Legend, ZoomControls } from "./Legend";
@@ -17,12 +20,15 @@ import { ACCESS_POINTS, ASSETS, CAMERAS, CAMERA_EVENTS, buildReports } from "@/l
 import { classify } from "@/lib/classify";
 import { scoreReport, type PriorityResult } from "@/lib/priority";
 import { ACCESS_LABEL, ASSET_LABEL, CATEGORY_LABEL, unitById, unitForCategory } from "@/lib/meta";
-import type { LngLat, Place, Report, Sector, Status } from "@/lib/types";
+import { METRIC, assetMeter, fmt, meterAt, sectorReading, type Reading } from "@/lib/resources";
+import { applyTransfers, estimate, type Transfer } from "@/lib/transfer";
+import type { Draft } from "./TransferPlanner";
+import type { LngLat, Metric, Place, Report, Sector, Status } from "@/lib/types";
 
 export type ScoredReport = Report & { priority: PriorityResult };
 export type Selection = { type: "report" | "camera" | "asset" | "access"; id: string };
 
-const CITY = { slug: "kielce", name: "Kielce" };
+const CITY = { slug: "krakow", name: "Kraków" };
 const PANEL_W = 400;
 
 interface Loaded extends CityGeo {
@@ -72,6 +78,18 @@ export default function CityMapApp() {
   const [draft, setDraft] = useState<LngLat | null>(null);
   const [simIndex, setSimIndex] = useState(0);
   const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
+  const [mode, setMode] = useState<Mode>("zgloszenia");
+  const [metric, setMetric] = useState<Metric>("energia");
+  const [t, setT] = useState(() => Date.now());
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [transferDraft, setDraftTransfer] = useState<Draft | null>(null);
+
+  // Odczyty zasobów „na żywo" — tykanie tylko w widoku zasobów.
+  useEffect(() => {
+    if (mode !== "zasoby") return;
+    const i = setInterval(() => setT(Date.now()), 1500);
+    return () => clearInterval(i);
+  }, [mode]);
 
   useEffect(() => {
     loadCity(CITY.slug).then(setGeo);
@@ -95,6 +113,17 @@ export default function CityMapApp() {
   const cameras = useMemo(() => CAMERAS.map((c) => ({ ...c, sector: sectorOf(c.position) })), [sectorOf]);
   const assets = useMemo(() => ASSETS.map((a) => ({ ...a, sector: sectorOf(a.position) })), [sectorOf]);
   const access = useMemo(() => ACCESS_POINTS.map((a) => ({ ...a, sector: sectorOf(a.position) })), [sectorOf]);
+
+  const readingsAt = useCallback(
+    (at: number, withTransfers = true): Record<string, Reading> => {
+      const list = geo?.sectorList ?? [];
+      const base = Object.fromEntries(list.map((s) => [s.id, sectorReading(s.id, metric, assets, at)]));
+      return withTransfers ? applyTransfers(base, transfers, metric, list) : base;
+    },
+    [geo, metric, assets, transfers],
+  );
+  const baseReadings = useMemo(() => readingsAt(t, false), [readingsAt, t]);
+  const readings = useMemo(() => readingsAt(t), [readingsAt, t]);
 
   const sectorCounts = useMemo(() => {
     const out: Record<string, number> = {};
@@ -151,6 +180,7 @@ export default function CityMapApp() {
       cameraId: ev.cameraId,
       confidence: ev.confidence ?? 0.85,
     });
+    setMode("zgloszenia");
     setToast({ id, text: `Kamera ${ev.cameraId}: ${ev.title}` });
     setSelection({ type: "report", id });
     flyTo(ev.position, 14.5);
@@ -179,6 +209,7 @@ export default function CityMapApp() {
     });
     setDialog(false);
     setDraft(null);
+    setMode("zgloszenia");
     setToast({ id, text: `Przyjęto zgłoszenie ${id} · ${CATEGORY_LABEL[c.category]}` });
     setSelection({ type: "report", id });
   };
@@ -193,6 +224,16 @@ export default function CityMapApp() {
   const selAsset = selection?.type === "asset" ? assets.find((a) => a.id === selection.id) : undefined;
   const selAccess = selection?.type === "access" ? access.find((a) => a.id === selection.id) : undefined;
   const cameraReport = selCamera && scored.find((r) => r.cameraId === selCamera.id && r.status !== "zamkniete");
+  const resources = mode === "zasoby";
+  // Zgłoszenia i zasoby to osobne widoki mapy — warstwy z menu działają w obrębie widoku.
+  const visible = {
+    ...layers,
+    sectors: layers.sectors && !resources,
+    reports: layers.reports && !resources,
+    cameras: layers.cameras && !resources,
+    access: layers.access && !resources,
+    assets: layers.assets && resources,
+  };
 
   return (
     <main className="relative min-h-0 flex-1 overflow-hidden">
@@ -218,7 +259,7 @@ export default function CityMapApp() {
         <>
           <MarkerOverlay
             map={map}
-            layers={layers}
+            layers={visible}
             sectors={geo.sectorList}
             selectedSector={selectedSector}
             reports={scored}
@@ -229,7 +270,29 @@ export default function CityMapApp() {
             draft={dialog ? draft : null}
             onSelect={select}
             onSectorClick={(id) => selectSector(selectedSector === id ? null : id)}
+            assetFocus={resources ? (a) => !!assetMeter(a, metric) : undefined}
           />
+
+          {resources && (
+            <FlowOverlay
+              map={map}
+              metric={metric}
+              sectors={geo.sectorList}
+              readings={readings}
+              assets={assets}
+              selectedSector={selectedSector}
+              t={t}
+              routes={[
+                ...transfers
+                  .filter((x) => x.metric === metric)
+                  .map((x) => ({ id: x.id, from: x.from, to: x.to, value: estimate(x, baseReadings, geo.sectorList)?.delivered ?? 0, preview: false })),
+                ...(transferDraft && transferDraft.from !== transferDraft.to
+                  ? [{ id: "draft", from: transferDraft.from, to: transferDraft.to, value: estimate({ metric, ...transferDraft }, baseReadings, geo.sectorList)?.delivered ?? 0, preview: true }]
+                  : []),
+              ]}
+              onSectorClick={(id) => selectSector(selectedSector === id ? null : id)}
+            />
+          )}
 
           {selCamera && (
             <MapPopup map={map} at={selCamera.position} title={`Kamera · ${selCamera.name}`} onClose={() => setSelection(null)} width={selCamera.live ? 380 : 260}>
@@ -264,6 +327,18 @@ export default function CityMapApp() {
                 </div>
               )}
               <div className="mt-1.5 text-sm">{selAsset.levelLabel}</div>
+              {selAsset.meters?.map((m) => {
+                const d = METRIC[m.metric];
+                const v = meterAt(m, selAsset.id, t);
+                return (
+                  <div key={m.metric} className="mt-1.5 flex items-center justify-between text-xs">
+                    <span className="text-muted">{d.label}</span>
+                    <span className="tabular-nums" style={{ color: d.color }}>
+                      {v.secondary > 0 ? `+${fmt(v.secondary, m.metric)}` : fmt(v.primary, m.metric)} {d.unit}
+                    </span>
+                  </div>
+                );
+              })}
               {selAsset.level >= 85 && selAsset.kind !== "sprzet" && (
                 <div className="mt-2 rounded-md bg-amber-500/15 px-2 py-1 text-xs text-amber-300">AI: zaplanuj interwencję w ciągu 24 h</div>
               )}
@@ -318,6 +393,46 @@ export default function CityMapApp() {
         </div>
       )}
 
+      <SidePanel
+        mode={mode}
+        onMode={(m) => {
+          setMode(m);
+          setSelection(null);
+          setT(Date.now());
+        }}
+        openReports={scored.filter((r) => r.status !== "zamkniete").length}
+      >
+        {resources ? (
+          <ResourcesPanel
+            metric={metric}
+            onMetric={(m) => {
+              setMetric(m);
+              setDraftTransfer(null);
+            }}
+            sectors={geo.sectorList}
+            readings={readings}
+            readingsAt={readingsAt}
+            base={baseReadings}
+            transfers={transfers}
+            draft={transferDraft}
+            onDraft={setDraftTransfer}
+            onApply={(d) => {
+              setTransfers((ts) => [...ts, { id: `T${Date.now()}`, metric, ...d }]);
+              setDraftTransfer(null);
+            }}
+            onRemoveTransfer={(id) => setTransfers((ts) => ts.filter((x) => x.id !== id))}
+            assets={assets}
+            reports={scored}
+            t={t}
+            selectedSector={selectedSector}
+            onSector={selectSector}
+            onSelectAsset={(id) => select({ type: "asset", id })}
+            onOpenReport={(id) => {
+              setMode("zgloszenia");
+              select({ type: "report", id });
+            }}
+          />
+        ) : (
       <EventsPanel
         reports={scored}
         now={now}
@@ -333,8 +448,10 @@ export default function CityMapApp() {
         }}
         onSimulate={simulate}
       />
+        )}
+      </SidePanel>
 
-      <Legend />
+      <Legend mode={mode} metric={metric} />
       <ZoomControls onZoom={(d) => (d > 0 ? map?.zoomIn() : map?.zoomOut())} />
 
       {toast && (

@@ -16,7 +16,7 @@ Koncepcja: [KONCEPCJA.md](KONCEPCJA.md).
 
 Praktyczny minimalizm, ciemna mapa, fiolet jako akcent:
 - tło mapy grafitowe, miasto podświetlone granatem, granica w kolorze lawendowym z poświatą,
-- sektory: fioletowe linie i etykiety-pigułki `S01…S09`,
+- sektory (dzielnice Krakowa, D-01): fioletowe linie i etykiety-pigułki `D01…D18`,
 - pływające panele (ciemne, zaokrąglone, z cienką ramką): pasek górny (miasto, wyszukiwarka, Warstwy, Sektory), legenda w lewym dolnym rogu, zoom w prawym dolnym,
 - kolory priorytetów: krytyczny czerwony, wysoki pomarańczowy, średni żółty, niski szary,
 - dostępność: duży kontrast, cele kliknięcia ≥ 40 px, etykiety ARIA, obsługa z klawiatury.
@@ -24,7 +24,7 @@ Praktyczny minimalizm, ciemna mapa, fiolet jako akcent:
 ## Etapy
 
 ### Etap 1 — Mapa główna (gotowe, dane demo w pamięci przeglądarki)
-- [x] Onboarding miasta: `website/scripts/build-city.mjs` pobiera granicę i osiedla z OSM i generuje sektory (Voronoi przycięty do granicy) → `public/data/kielce/`.
+- [x] Onboarding miasta: `website/scripts/build-city.mjs` pobiera granicę i osiedla z OSM i generuje sektory (Voronoi przycięty do granicy) → `public/data/kielce/` (od D-01: dzielnice Krakowa → `public/data/krakow/`).
 - [x] Mapa (MapLibre + CARTO Dark Matter): granica, maska poza miastem, sektory, etykiety.
 - [x] Warstwy: kamery, zgłoszenia, infrastruktura/zasoby, dostępność.
 - [x] Pasek górny: wyszukiwarka (osiedla, zgłoszenia), menu Warstwy, menu Sektory (przelot + podświetlenie).

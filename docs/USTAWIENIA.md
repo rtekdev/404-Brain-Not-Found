@@ -15,3 +15,5 @@ Rejestr wyborów dla tego projektu; odpowiedź raz udzielona nie wraca jako pyta
 | 2026-10-03 | Artefakty robocze | włączone · 100 MB |
 | 2026-10-03 | Lista modeli | włączona · 7 dni |
 | 2026-10-03 | Tryb ciągły | wyłączony |
+| 2026-10-03 | Testy | pełny TDD — test przed każdą zmianą logiki; Vitest, `npm test` w `website/` (decyzja człowieka) |
+| 2026-10-03 | Kierunek wizualny | ciemne centrum dowodzenia — szczegóły w `docs/DESIGN.md` (decyzja człowieka) |
