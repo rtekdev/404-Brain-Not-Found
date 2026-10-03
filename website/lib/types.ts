@@ -46,8 +46,6 @@ export interface Report {
   category: Category;
   source: Source;
   status: Status;
-  latitude: number;
-  longitude: number;
   position: LngLat;       // [lng, lat], built in SQL
   sector: string | null;            // sectors.id, e.g. "D13"
   createdAt: number;                // ms timestamp

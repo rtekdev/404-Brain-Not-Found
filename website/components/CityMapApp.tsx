@@ -262,6 +262,7 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
       position: draft,
       blocking: d.blocking,
       confidence: c.confidence,
+      createdAt: Date.now(),
     });
     setDialog(false);
     setDraft(null);

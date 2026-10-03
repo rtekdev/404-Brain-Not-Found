@@ -74,7 +74,7 @@ export default function ReportForm({ cameras }: { cameras: Camera[] }) {
         </Field>
         <Field label="Szerokość geogr. (lat)" error={e.latitude}>
           <input disabled value={camera && camera.latitude ? camera.latitude : "unavailable"} className={readonly} />
-          <input type="hidden" name="latitude" value={camera?.latitude ?? ""} />
+          <input type="hidden" name="position" value={[camera?.latitude ?? "", camera?.longitude ?? ""]} />
         </Field>
       </div>
 

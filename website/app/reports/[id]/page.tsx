@@ -40,8 +40,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ["Zgłoszono", timeAgo(r.createdAt, now)],
     ["Potwierdzenia", r.confirmations],
     ["Współrzędne", <span key="pos" className="font-mono text-xs">
-      {r.latitude ? r.latitude.toFixed(5) : "Brak"},{" "}
-      {r.longitude ? r.longitude.toFixed(5) : "Brak"}
+      {r.position[0] ? r.position[0].toFixed(5) : "Brak"},{" "}
+      {r.position[1] ? r.position[1].toFixed(5) : "Brak"}
     </span>],
   ];
 
