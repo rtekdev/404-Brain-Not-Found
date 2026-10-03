@@ -19,6 +19,32 @@
 
 ## Wpisy
 
+### 2026-10-04 — Naprawa builda po merge'u i odporność serwera
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- Merge `436cd5c` zepsuł `app/reports/page.tsx`: pod nową stroną doklejona stara wersja („temp css changes"
+  z `fix/reports`, cyjan, „Available Reports") i podwójny import `Link` — build nie przechodził. Przywrócona
+  wersja w wyglądzie aplikacji.
+- `lib/db.ts`: obsługa `error` puli (zerwane bezczynne połączenie przy restarcie bazy kończyło proces Node),
+  literówka `NODE_ENV_TYPE` → `NODE_ENV`.
+- `/api/chat`: klient Anthropic tworzony przy pierwszym zapytaniu (nie przy ładowaniu modułu).
+- `app/error.tsx`: przy awarii bazy komunikat w wyglądzie aplikacji z telefonem i „Spróbuj ponownie"
+  zamiast pustego ekranu. `/reports/[id]`: zły zapis adresu → 404.
+- ESLint pomija kopiowany worker MapLibre (`public/maplibre/**`) — 1125 ostrzeżeń mniej.
+
+**Zweryfikowane — jak dokładnie:**
+- `tsc`, `eslint .` (0 błędów, 0 ostrzeżeń), `npm test` z bazą 69/69, `npm run build` — czyste.
+- Obraz Dockera: wszystkie trasy 200 (nieznane zgłoszenie → strona 404), czat bez klucza → 503 z komunikatem,
+  zły JSON → 400. Baza zatrzymana → strona błędu; baza włączona → „Spróbuj ponownie" wraca do mapy;
+  kontener bez restartu (0).
+
+**Świadomie odłożone:**
+- Karta otwarta przed wdrożeniem dalej odpytuje stare akcje serwera („Failed to find Server Action" w
+  logach, bez skutków dla serwera) — po wdrożeniu odświeżyć otwarte karty.
+- Czat odpowiada dopiero po ustawieniu `ANTHROPIC_API_KEY`.
+
 ### 2026-10-03 — Drugie miasto (Kielce), lista zgłoszeń w wyglądzie mapy
 
 Autor: Claude (Opus) + rtek

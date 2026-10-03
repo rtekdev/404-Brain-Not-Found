@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { APP_FULL_NAME, APP_NAME, CONTACT } from "@/lib/meta";
 
-const client = new Anthropic();
+// Klient tworzony przy pierwszym zapytaniu — brak klucza nie może wysadzić modułu przy starcie ani przy buildzie.
+let client: Anthropic | undefined;
 
 const SYSTEM = `Jesteś asystentem ${APP_NAME} (${APP_FULL_NAME}) — miejskiego systemu Krakowa do zgłaszania problemów i kontaktu z miastem.
 Odpowiadasz po polsku, krótko i prostym językiem, tak żeby zrozumiał każdy.
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
   if (!messages) return Response.json({ error: "Nieprawidłowe zapytanie." }, { status: 400 });
 
   try {
+    client ??= new Anthropic();
     const response = await client.beta.messages.create({
       model: "claude-opus-5-5",
       max_tokens: 2000,

@@ -23,7 +23,13 @@ const requestTime = () => Date.now();
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   await connection();
   const { id } = await params;
-  const r = await getReportById(decodeURIComponent(id));
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(id);
+  } catch {
+    notFound();
+  }
+  const r = await getReportById(decoded);
   if (!r) notFound();
 
   const now = requestTime();
