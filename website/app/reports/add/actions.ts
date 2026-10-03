@@ -14,14 +14,20 @@ export type FormState = {
 
 const keys = <T extends string>(o: Record<T, string>) => Object.keys(o) as [T, ...T[]];
 
+const coord = (min: number, max: number) =>
+  z.preprocess(
+    (v) => (v === "" || v == null ? null : v),
+    z.coerce.number().min(min).max(max).nullable()
+  );
+
 const schema = z.object({
   title: z.string().trim().min(3, "Min. 3 znaki").max(255, "Max. 255 znaków"),
   description: z.string().trim().min(10, "Min. 10 znaków").max(2000),
   category: z.enum(keys(CATEGORY_LABELS)),
   source: z.enum(keys(SOURCE_LABELS)),
   status: z.enum(keys(STATUS_LABELS)),
-  longitude: z.coerce.number().min(-180).max(180),
-  latitude: z.coerce.number().min(-90).max(90),
+  longitude: coord(-180, 180),
+  latitude: coord(-90, 90),
   confidence: z.coerce.number().min(0).max(1),
   confirmations: z.coerce.number().int().min(1).max(999),
   blocking: z.preprocess((v) => v === "on", z.boolean()),
@@ -38,8 +44,7 @@ export async function createReport(_prev: FormState, formData: FormData): Promis
 
   const d = parsed.data;
   const id = await insertReport({
-    ...d,
-    // same rule as your buildReports(): "nowe" has no unit yet
+    ...d, // includes longitude / latitude (number | null)
     unitId: d.status === "nowe" ? null : unitForCategory(d.category).id,
   });
 

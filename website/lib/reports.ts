@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
+import type { Camera, Category, Report, Source, Status } from "@/lib/types";
 import { rowToReport, rowToSector, sectorOf, type ReportRow, type SectorRow } from "./rows";
-import type { Category, Report, Source, Status } from "@/lib/types";
 
 /** Zgłoszenie z nazwą dzielnicy i miasta — do listy i szczegółów pod /reports. */
 export type ReportItem = Report & { sectorName: string | null; citySlug: string | null; cityName: string | null };
@@ -25,14 +25,26 @@ export async function getReports(): Promise<ReportItem[]> {
   const { rows } = await db.query<ItemRow>(`${SELECT_ITEMS} ORDER BY r.created_at DESC`);
   return rows.map(toItem);
 }
+// old
+// export async function getReportById(id: string): Promise<Report | null> {
+//   const { rows } = await db.query<Report>(
+//     "SELECT * FROM reports WHERE id = $1",
+//     [id]
+//   );
 
+//   let result = rows[0] ?? null;
+//   if (!result) return null;
+
+//   result["position"] = [result.longitude, result.latitude];
+//   return result;
+// }
 export async function getReportById(id: string): Promise<ReportItem | null> {
   const { rows } = await db.query<ItemRow>(`${SELECT_ITEMS} WHERE r.id = $1`, [id]);
   return rows[0] ? toItem(rows[0]) : null;
 }
 
-export async function getCameras(): Promise<{ id: string; name: string }[]> {
-  const { rows } = await db.query("SELECT id, name FROM cameras ORDER BY id");
+export async function getCameras(): Promise<Camera[]> {
+  const { rows } = await db.query("SELECT * FROM cameras ORDER BY id");
   return rows;
 }
 
@@ -42,8 +54,8 @@ export interface NewReport {
   category: Category;
   source: Source;
   status: Status;
-  longitude: number;
-  latitude: number;
+  longitude: number | null;
+  latitude: number | null;
   unitId: string | null;
   confirmations: number;
   blocking: boolean;

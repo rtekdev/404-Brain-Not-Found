@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useState, type ReactNode } from "react";
 import { createReport, type FormState } from "./actions";
-import { CATEGORY_LABELS, SOURCE_LABELS, STATUS_LABELS } from "@/lib/types";
+import { Camera, CATEGORY_LABELS, SOURCE_LABELS, STATUS_LABELS } from "@/lib/types";
 
 const input =
   "w-full rounded-lg border border-line bg-black/20 px-3 py-2 text-sm text-foreground " +
@@ -24,12 +24,17 @@ function Options<T extends string>({ items }: { items: Record<T, string> }) {
   ));
 }
 
-export default function ReportForm({ cameras }: { cameras: { id: string; name: string }[] }) {
+export default function ReportForm({ cameras }: { cameras: Camera[] }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createReport, {});
   const [confidence, setConfidence] = useState(0.7);
   const e = state.errors ?? {};
   const v = state.values ?? {};
 
+  const [cameraId, setCameraId] = useState(v.cameraId ?? "");
+  const camera = cameras.find((c) => c.id === cameraId);
+
+  const readonly = input + " cursor-not-allowed opacity-60";
+  
   return (
     <form
       action={action}
@@ -64,28 +69,35 @@ export default function ReportForm({ cameras }: { cameras: { id: string; name: s
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Długość geogr. (lng)" error={e.longitude}>
-          <input name="longitude" type="number" step="any" required
-            defaultValue={v.longitude ?? "19.9373"} className={input} />
+          <input disabled value={camera && camera.longitude ? camera.longitude : "unavailable"} className={readonly} />
+          <input type="hidden" name="longitude" value={camera?.longitude ?? ""} />
         </Field>
         <Field label="Szerokość geogr. (lat)" error={e.latitude}>
-          <input name="latitude" type="number" step="any" required
-            defaultValue={v.latitude ?? "50.0617"} className={input} />
+          <input disabled value={camera && camera.latitude ? camera.latitude : "unavailable"} className={readonly} />
+          <input type="hidden" name="latitude" value={camera?.latitude ?? ""} />
         </Field>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Kamera (opcjonalnie)" error={e.cameraId}>
-          <select name="cameraId" defaultValue={v.cameraId ?? ""} className={input}>
+          <select
+            name="cameraId"
+            value={cameraId}
+            onChange={(ev) => setCameraId(ev.target.value)}
+            className={input}
+          >
             <option value="">— brak —</option>
             {cameras.map((c) => (
               <option key={c.id} value={c.id}>{c.id} · {c.name}</option>
             ))}
           </select>
         </Field>
+
         <Field label="Potwierdzenia" error={e.confirmations}>
-          <input name="confirmations" type="number" min={1} defaultValue={v.confirmations ?? "1"} className={input} />
+          <input name="confirmations" type="number" min={1} defaultValue={v.confirmations ?? 1} className={input} />
         </Field>
       </div>
+
 
       <Field label={`Pewność: ${Math.round(confidence * 100)}%`} error={e.confidence}>
         <input name="confidence" type="range" min={0} max={1} step={0.01}

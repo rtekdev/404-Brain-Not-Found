@@ -1,5 +1,6 @@
 "use client";
 
+import { Report } from "@/lib/types";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Clock, Users } from "lucide-react";

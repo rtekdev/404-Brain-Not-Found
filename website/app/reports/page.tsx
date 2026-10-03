@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import LiveReports from "./LiveResponseListener";
 import { Plus } from "lucide-react";
 import { getReports } from "@/lib/reports";
 import Reports from "./reports";
+import { Suspense } from "react";
+import Loading from "./loading";
 
 export default async function Page() {
   await connection();
@@ -30,7 +33,10 @@ export default async function Page() {
           </Link>
         </div>
 
-        <Reports reports={reports} />
+        <Suspense fallback={<Loading />}>
+          <LiveReports />
+          <Reports reports={reports} />
+        </Suspense>
       </div>
     </main>
   );
