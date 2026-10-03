@@ -22,8 +22,8 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 - Mieszkaniec zgłasza problem, wskazując miejsce na mapie; kategoria rozpoznaje się podczas pisania.
 - Sześć kamer w centrum Krakowa pokazuje prawdziwy obraz na żywo (WebCamera.pl).
 - W widoku całego miasta panel pokazuje ranking dzielnic (otwarte, krytyczne, najwyższy priorytet); kliknięcie dzielnicy pokazuje jej zgłoszenia.
-- Pokaz „Symuluj": zgłoszenie z kamery, wiadomość z Telegrama albo telefon od mieszkańca — AI odczytuje kategorię i miejsce; scenariusz prezentacji w [SCENARIUSZ_DEMO.md](SCENARIUSZ_DEMO.md).
-- Pokaz „symuluj kamerę" tworzy zgłoszenie tak, jakby wykryła je kamera — na potrzeby prezentacji.
+- Lista zgłoszeń `/reports` (w tym samym wyglądzie co mapa): od najpilniejszego, zakładki Otwarte / Krytyczne / Zamknięte, wybór miasta, szczegóły z oceną AI i przejściem na mapę; formularz `/reports/add`.
+- Pokaz alarmu: przycisk „Symuluj alarm" w górnym pasku (przycisk „Symuluj" z panelu zgłoszeń usunięty).
 - Widok „Zasoby": zużycie i produkcja energii, woda, odpady i ciepło — dla każdego obiektu, sektora i całego miasta, z odczytami na żywo (dane pokazowe).
 - Na oddalonej mapie dane z sektorów spływają animacją do centrali; po przybliżeniu — z obiektów do sektora.
 - Asystent wskazuje anomalie w pomiarach i łączy je ze zgłoszeniami mieszkańców (np. straty wody ↔ zgłoszony wyciek).

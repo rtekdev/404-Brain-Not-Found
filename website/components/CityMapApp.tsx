@@ -8,16 +8,14 @@ import MapView, { boundsOf } from "./map/MapView";
 import MarkerOverlay from "./map/MarkerOverlay";
 import MapPopup from "./map/MapPopup";
 import TopBar, { LAYER_DEFS, type LayerId } from "./TopBar";
-import EventsPanel, { type SimKind } from "./EventsPanel";
-import IntakeSimulator from "./IntakeSimulator";
-import type { IntakeDraft } from "@/lib/intake";
+import EventsPanel from "./EventsPanel";
 import ResourcesPanel from "./ResourcesPanel";
 import SidePanel, { type Mode } from "./SidePanel";
 import FlowOverlay from "./map/FlowOverlay";
 import ReportDialog from "./ReportDialog";
 import CameraFeed from "./CameraFeed";
 import { Legend, ZoomControls } from "./Legend";
-import { INTAKE_SCENARIOS, SCRIPTED_CITY, cameraEventsFor, localAlertReports, type IntakeScenario } from "@/lib/simulation";
+import { SCRIPTED_CITY, localAlertReports } from "@/lib/simulation";
 import type { CityData, CityOutline, CityRef } from "@/lib/city-repo";
 import OtherCities from "./map/OtherCities";
 import { sectorOf as sectorOfPoint } from "@/lib/rows";
@@ -70,10 +68,8 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
   const [dialog, setDialog] = useState(false);
   const [picking, setPicking] = useState(false);
   const [draft, setDraft] = useState<LngLat | null>(null);
-  const [simIndex, setSimIndex] = useState(0);
   const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
   const [mode, setMode] = useState<Mode>("zgloszenia");
-  const [intake, setIntake] = useState<IntakeScenario | null>(null);
   // Powiadomienia o nowych zgłoszeniach z bazy (inne kanały, symulacja alarmu).
   const [alertIds, setAlertIds] = useState<string[]>([]);
   const [doneSteps, setDoneSteps] = useState<Set<string>>(() => new Set());
@@ -247,57 +243,6 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
     setReports((rs) => [saved, ...rs]);
     setNow(Date.now());
     return saved.id;
-  };
-
-  const simulateIntake = (kind: SimKind) => {
-    if (kind === "kamera") return simulate();
-    setMode("zgloszenia");
-    setSelection(null);
-    setIntake(INTAKE_SCENARIOS.find((s) => s.channel === kind) ?? null);
-  };
-
-  const acceptIntake = async (d: IntakeDraft) => {
-    if (!intake) return;
-    const channel = intake.channel;
-    setIntake(null);
-    if (!d.position) {
-      // Bez miejsca w wiadomości dyspozytor wskazuje je na mapie w zwykłym formularzu.
-      setDialog(true);
-      setPicking(true);
-      return;
-    }
-    const id = await addReport({
-      title: d.title,
-      description: d.description,
-      category: d.category,
-      source: channel,
-      position: d.position,
-      blocking: d.blocking,
-      confidence: d.confidence,
-    });
-    setToast({ id, text: `${channel === "telegram" ? "Telegram" : "Telefon"}: przyjęto ${id} · ${CATEGORY_LABEL[d.category]}` });
-    setSelection({ type: "report", id });
-    flyTo(d.position, 14.5);
-  };
-
-  const simulate = async () => {
-    const events = cameraEventsFor(city.slug);
-    const ev = events[simIndex % events.length];
-    setSimIndex((i) => i + 1);
-    const id = await addReport({
-      title: ev.title,
-      description: ev.description,
-      category: ev.category,
-      source: "kamera",
-      position: ev.position,
-      blocking: ev.blocking ?? false,
-      cameraId: ev.cameraId,
-      confidence: ev.confidence ?? 0.85,
-    });
-    setMode("zgloszenia");
-    setToast({ id, text: `Kamera ${ev.cameraId}: ${ev.title}` });
-    setSelection({ type: "report", id });
-    flyTo(ev.position, 14.5);
   };
 
   useEffect(() => {
@@ -497,19 +442,6 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
         />
       )}
 
-      {intake && (
-        <IntakeSimulator
-          key={intake.channel}
-          scenario={intake}
-          places={geo.places}
-          sectorLabel={(pos) => {
-            const id = sectorOf(pos);
-            return id ? `${id} ${geo.sectorList.find((x) => x.id === id)?.name ?? ""}` : "poza dzielnicami";
-          }}
-          onAccept={acceptIntake}
-          onClose={() => setIntake(null)}
-        />
-      )}
 
       {picking && (
         <div className="glass absolute left-1/2 top-20 z-40 -translate-x-1/2 rounded-full px-4 py-2 text-sm">
@@ -573,8 +505,6 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
           setDialog(true);
           setPicking(true);
         }}
-        onSimulate={simulateIntake}
-        simKinds={city.slug === SCRIPTED_CITY ? ["kamera", "telegram", "telefon"] : ["kamera"]}
       />
         )}
       </SidePanel>
