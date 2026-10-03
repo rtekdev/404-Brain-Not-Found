@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import type { Report } from "@/lib/types";
+import type { Category, Report, Source, Status } from "@/lib/types";
 
 export async function getReports(): Promise<Report[]> {
   const { rows } = await db.query<Report>(
@@ -15,4 +15,37 @@ export async function getReportById(id: number): Promise<Report | null> {
     [id]
   );
   return rows[0] ?? null;
+}
+
+export async function getCameras(): Promise<{ id: string; name: string }[]> {
+  const { rows } = await db.query("SELECT id, name FROM cameras ORDER BY id");
+  return rows;
+}
+
+export interface NewReport {
+  title: string;
+  description: string;
+  category: Category;
+  source: Source;
+  status: Status;
+  longitude: number;
+  latitude: number;
+  unitId: string | null;
+  confirmations: number;
+  blocking: boolean;
+  cameraId: string | null;
+  confidence: number;
+}
+
+export async function insertReport(r: NewReport): Promise<string> {
+  const { rows } = await db.query<{ id: string }>(
+    `INSERT INTO reports
+       (id, title, description, category, source, status, longitude, latitude,
+        unit_id, confirmations, blocking, camera_id, confidence)
+     VALUES ('Z-' || nextval('report_id_seq'), $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     RETURNING id`,
+    [r.title, r.description, r.category, r.source, r.status, r.longitude, r.latitude,
+    r.unitId, r.confirmations, r.blocking, r.cameraId, r.confidence]
+  );
+  return rows[0].id;
 }
