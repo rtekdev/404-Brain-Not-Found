@@ -1,4 +1,4 @@
-# ARCHITEKTURA — 404 Brain Not Found („Puls Miasta")
+# ARCHITEKTURA — 404 Brain Not Found („SWIMM")
 
 Stan na: 2026-10-03
 
@@ -14,12 +14,16 @@ GeoJSON, zgłoszenia i pomiary zasobów generowane w kliencie (dane pokazowe, be
 
 | Moduł | Katalog / plik | Odpowiedzialność |
 |---|---|---|
-| Strona | `website/app/` | składa układ strony i ładuje mapę po stronie klienta |
+| Strona główna | `website/app/page.tsx`, `components/HelpChat.tsx` | landing dla mieszkańców: pełna nazwa, klikalny telefon, SMS / Telegram / 112 i czat z asystentem AI |
+| Centrum | `website/app/centrum/` | panel dla urzędu — ładuje mapę po stronie klienta (trasa `/map` to stary duplikat) |
+| Czat AI | `website/app/api/chat/route.ts` | `POST /api/chat` — rozmowa z modelem Claude (Anthropic SDK) z promptem o kanałach kontaktu z `lib/meta.ts` |
 | Ekran mapy | `website/components/CityMapApp.tsx` | trzyma stan ekranu (zgłoszenia, widok, miara, przekierowania) i łączy mapę z panelem |
 | Mapa | `website/components/map/` | rysuje mapę, sektory, znaczniki HTML i animowane przepływy zasobów |
 | Panel boczny | `website/components/SidePanel.tsx`, `EventsPanel.tsx`, `ResourcesPanel.tsx`, `TransferPlanner.tsx` | przełącza widok Zgłoszenia / Zasoby i pokazuje listy, szczegóły i planer przekierowań |
 | Zgłoszenia | `website/lib/priority.ts`, `classify.ts` | nadaje zgłoszeniom priorytet i kategorię regułami zastępującymi model |
 | Zasoby | `website/lib/resources.ts` | liczy odczyty miar (energia, woda, odpady, ciepło) per obiekt i sektor oraz wnioski |
+| Przyjęcie zgłoszeń | `website/lib/intake.ts`, `components/IntakeSimulator.tsx` | zamienia wiadomość (Telegram, SMS) albo transkrypcję rozmowy w szkic zgłoszenia: kategoria, tytuł, osiedle, dzielnica |
+| Ranking dzielnic | `website/lib/sectors.ts` | liczy otwarte i krytyczne zgłoszenia dzielnic i układa je od najpilniejszej |
 | Przekierowania | `website/lib/transfer.ts` | wycenia przeniesienie zasobu między sektorami i proponuje najlepsze trasy |
 | Dane pokazowe | `website/lib/demo-data.ts`, `website/public/data/krakow/` | dostarcza kamery, zgłoszenia, obiekty z licznikami i geometrię Krakowa |
 | Onboarding miasta | `website/scripts/build-city.mjs` | pobiera z OpenStreetMap granicę, dzielnice (jako sektory) i osiedla miasta |
@@ -54,6 +58,7 @@ mieszkańców, straty, rezerwy) i obiektów produkujących w jego granicach.
 |---|---|---|---|
 | CARTO Dark Matter | podkład mapy | `components/map/MapView.tsx` | brak ulic i etykiet; granice, sektory i znaczniki dalej działają |
 | WebCamera.pl | obraz na żywo 6 kamer w Starym Mieście i na Kazimierzu (iframe `player.webcamera.pl`) | `lib/demo-data.ts`, `components/CameraFeed.tsx` | pusty podgląd tej kamery; reszta aplikacji działa, pozostałe kamery mają podgląd stylizowany |
+| Anthropic API (Claude Opus 5.5, `effort: low`, fallback serwerowy) | odpowiedzi czatu na stronie głównej | `app/api/chat/route.ts`; klucz `ANTHROPIC_API_KEY` w `website/.env` | czat odpowiada „chwilowo niedostępny" i podaje numer telefonu; reszta strony działa |
 | OpenStreetMap (Nominatim, Overpass) | granica, dzielnice i osiedla przy onboardingu miasta | `scripts/build-city.mjs` | nie da się odświeżyć danych miasta; aplikacja używa zapisanych plików GeoJSON (Overpass ma serwery zapasowe) |
 
 ## Decyzje techniczne, które kształtują ten układ

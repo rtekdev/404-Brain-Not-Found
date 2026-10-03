@@ -4,7 +4,7 @@ Stan na: 2026-10-03
 
 ## Gdzie jesteśmy
 
-Budujemy na hackathon HackYeah (zadanie SMART CITY) „Puls Miasta" — jedną mapę miasta dla
+Budujemy na hackathon HackYeah (zadanie SMART CITY) „SWIMM" — jedną mapę miasta dla
 urzędu, na której widać zgłoszenia od mieszkańców i z kamer, zasoby miejskie i dostępność, a sztuczna
 inteligencja wyciąga na wierzch to, co najpilniejsze. Pierwszy ekran — mapa Krakowa z panelem
 zdarzeń — działa lokalnie na danych pokazowych. Praca nad nim nie jest jeszcze zapisana we wspólnym
@@ -12,12 +12,17 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 
 ## Co działa
 
+- Strona główna dla mieszkańców: pełna nazwa SWIMM, numer telefonu (kliknięcie od razu dzwoni), SMS, Telegram, 112 i czat z asystentem AI. Numery są pokazowe. Czat odpowiada dopiero po ustawieniu `ANTHROPIC_API_KEY` w `website/.env`; bez klucza mówi, że jest niedostępny, i podaje telefon.
+- Panel urzędu (mapa, zgłoszenia, zasoby) jest pod adresem `/centrum`.
+
 - Dyspozytor widzi Kraków podzielony na 18 dzielnic (sektory D01–D18), z granicami pobranymi automatycznie z otwartych map.
 - Na mapie są zgłoszenia, kamery, zasoby (zbiorniki, kontenery, stacje) i punkty dostępności; warstwy można włączać i wyłączać.
 - Panel „Najważniejsze teraz" układa zgłoszenia od najpilniejszego i pokazuje, skąd przyszły (kamera, telefon, SMS, aplikacja, Messenger).
 - Dyspozytor przekazuje zgłoszenie właściwej jednostce i zmienia jego status.
 - Mieszkaniec zgłasza problem, wskazując miejsce na mapie; kategoria rozpoznaje się podczas pisania.
 - Sześć kamer w centrum Krakowa pokazuje prawdziwy obraz na żywo (WebCamera.pl).
+- W widoku całego miasta panel pokazuje ranking dzielnic (otwarte, krytyczne, najwyższy priorytet); kliknięcie dzielnicy pokazuje jej zgłoszenia.
+- Pokaz „Symuluj": zgłoszenie z kamery, wiadomość z Telegrama albo telefon od mieszkańca — AI odczytuje kategorię i miejsce; scenariusz prezentacji w [SCENARIUSZ_DEMO.md](SCENARIUSZ_DEMO.md).
 - Pokaz „symuluj kamerę" tworzy zgłoszenie tak, jakby wykryła je kamera — na potrzeby prezentacji.
 - Widok „Zasoby": zużycie i produkcja energii, woda, odpady i ciepło — dla każdego obiektu, sektora i całego miasta, z odczytami na żywo (dane pokazowe).
 - Na oddalonej mapie dane z sektorów spływają animacją do centrali; po przybliżeniu — z obiektów do sektora.
@@ -33,6 +38,7 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 
 ## Co dalej
 
+- Klucz `ANTHROPIC_API_KEY` w `website/.env`, żeby czat na stronie głównej odpowiadał, i prawdziwe numery kontaktowe w `website/lib/meta.ts`.
 - Prawdziwy model językowy zamiast reguł do oceny i układania zgłoszeń.
 - Zapisywanie zgłoszeń na serwerze, żeby nie znikały po odświeżeniu strony.
 - Jeden działający przykład zgłoszenia telefonem albo SMS-em.

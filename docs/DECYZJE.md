@@ -7,6 +7,17 @@ Rejestr startuje pusty, bo projekt przeszedł adopcję 2026-10-03: rozstrzygnię
 w `CLAUDE.md`, w sekcji „Zasady projektu (odziedziczone)". Każde rozstrzygnięcie podjęte po adopcji
 zapisuje się tutaj jako `D-NN`.
 
+## D-02 — Tylko zadanie SMART CITY, nazwa SWIMM, Telegram zamiast Messengera
+
+Data: 2026-10-03 · Decyzja człowieka
+
+Nie startujemy w zadaniu „Kraków bez barier" — to inny produkt (narzędzie dla turystów z wymogiem
+wiarygodności danych, bez dostępu do systemów miasta), a łączenie osłabiłoby oba zgłoszenia.
+Odnoga „planer wycieczek z alertami o incydentach" zostaje jako kierunek w SMART CITY (obszar
+transportu). Aplikacja nazywa się SWIMM — System Wspierania i Monitorowania Miasta (wcześniej
+„Puls Miasta"). Kanałem komunikatora jest Telegram, nie Messenger. Strona główna to prosty landing
+kontaktowy z czatem AI; panel urzędu jest pod `/centrum`.
+
 ## D-01 — Miastem demo jest Kraków, sektory to dzielnice
 
 Data: 2026-10-03 · Decyzja człowieka

@@ -10,10 +10,67 @@
 
 ## Czeka na człowieka
 
+- **Dane do prawdziwego bota Telegram (token @BotFather) i numeru telefonu (dostawca, numer, klucze)** — warianty B i C z `docs/SCENARIUSZ_DEMO.md` · 2026-10-03 · [wpis 2026-10-03 — Zgłoszenia per dzielnica, Telegram i telefon](#2026-10-03--zgłoszenia-per-dzielnica-telegram-i-telefon)
+
+- **Podać klucz `ANTHROPIC_API_KEY` (do `website/.env`) i prawdziwe numery kontaktowe** · 2026-10-03 · [wpis 2026-10-03 — Landing kontaktowy](#2026-10-03--landing-kontaktowy-z-czatem-ai-nazwa-swimm)
+
 - **Potwierdzić u organizatora godzinę startu (regulamin: „11:00 PM 3.10") i platformę zgłoszeń (HackTribe vs Challenge Rocket)** · 2026-10-03 · [wpis 2026-10-03 — Adopcja RelAI](#2026-10-03--adopcja-relai-wpis-zerowy)
 - **Doprecyzować, o który model chodzi pod nazwą „Jev" z koncepcji** · 2026-10-03 · [wpis 2026-10-03 — Adopcja RelAI](#2026-10-03--adopcja-relai-wpis-zerowy)
 
 ## Wpisy
+
+### 2026-10-03 — Zgłoszenia per dzielnica, Telegram i telefon
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- Dane pokazowe: po 2 zgłoszenia w każdej z 18 dzielnic, dzielnica pokazowa D13 Podgórze — 4
+  (jedna historia: awaria sieci wodnej). Razem 38 zgłoszeń.
+- Panel w widoku całego miasta: ranking dzielnic zamiast listy zgłoszeń — otwarte, krytyczne,
+  najwyższy priorytet; sortowanie od największej liczby krytycznych; zakładki Otwarte / Krytyczne /
+  Zamknięte działają na dzielnicach (`lib/sectors.ts`).
+- Przyjęcie zgłoszeń z wiadomości: `lib/intake.ts` (`parseMessage`, `findPlace` — nazwy osiedli
+  w odmianie i bez polskich znaków, pinezka z Telegrama ma pierwszeństwo). Nowe źródło `telegram`.
+- „Symuluj" ma trzy opcje: kamera, Telegram, telefon (`components/IntakeSimulator.tsx` — rozmowa
+  linijka po linijce, analiza AI, „Przyjmij zgłoszenie").
+- Klasyfikator: „asfalt" to wskazówka miejsca, nie problem („woda spod asfaltu" → woda, nie drogi).
+- Rezerwa wody: D13 0,92 → 0,85, D11 0,93 → 0,98 — propozycja przekierowania wody prowadzi do D13
+  stabilnie w czasie.
+- Scenariusz prezentacji: `docs/SCENARIUSZ_DEMO.md` (10 kroków, lista kontrolna, warianty A/B/C, plan awaryjny).
+
+**Zweryfikowane — jak dokładnie:**
+- TDD: testy rankingu, parsera, liczby zgłoszeń per dzielnica, scenariuszy w D13, klasyfikatora
+  i stabilnej trasy wody — najpierw czerwone, potem zielone; `npm test` 131/131, `tsc` i ESLint czyste.
+- Przeglądarka 1440×900 (`/centrum`, kontener dev): ranking dzielnic, Telegram → Z-1062 (woda, D13),
+  telefon → Z-1063 (woda, Stare Podgórze, D13), wniosek AI o stratach D13 z odnośnikiem,
+  propozycje wody D07/D10/D06 → D13.
+
+**Świadomie odłożone:**
+- Prawdziwy bot Telegram i numer telefonu — czekają na dane od człowieka (sekcja „Czeka na człowieka").
+- Równolegle w katalogu trwały zmiany innej sesji (strona główna dla mieszkańców, `/centrum`, czat);
+  tych plików nie ruszałem poza jedną linią `SOURCE_LABEL.telegram` w `lib/meta.ts`.
+
+### 2026-10-03 — Landing kontaktowy z czatem AI, nazwa SWIMM
+
+Autor: Claude (Opus) + użytkownik
+
+**Zrobione:**
+- Decyzja D-02: tylko SMART CITY (bez „Kraków bez barier"), nazwa SWIMM, Telegram zamiast Messengera.
+- `/` to teraz landing: pełna nazwa, telefon jako link `tel:`, SMS, Telegram, 112, czat AI pod spodem.
+  Mapa przeniesiona na `/centrum`; w nawigacji „Mapa" → „Centrum".
+- `POST /api/chat` (Anthropic SDK, `claude-opus-5-5`, `effort: low`, `fallbacks: "default"`),
+  walidacja wejścia (max 12 wiadomości po 2000 znaków), przy błędzie odpowiedź 503 z numerem telefonu.
+- `APP_NAME = "SWIMM"`, `APP_FULL_NAME`, `CONTACT` w `lib/meta.ts` (numery pokazowe).
+
+**Zweryfikowane — jak dokładnie:**
+- `tsc --noEmit` i ESLint bez błędów. Przeglądarka 1024×768: landing mieści się bez przewijania,
+  link telefonu ma `href="tel:+48123456789"`, wysłanie pytania w czacie pokazuje wiadomość
+  użytkownika i odpowiedź zastępczą (brak klucza API w środowisku). Prawdziwej odpowiedzi modelu
+  nie sprawdzono — brak klucza.
+
+**Świadomie odłożone:**
+- Trasa `/map` (duplikat `/centrum`) i źródło „Messenger" w danych pokazowych — do decyzji człowieka.
+- Testy jednostkowe walidacji czatu.
 
 ### 2026-10-03 — Kamery na żywo w Krakowie
 
