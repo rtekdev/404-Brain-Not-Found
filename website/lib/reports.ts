@@ -1,29 +1,18 @@
-export interface ReportsResponse { 
-  id: number;
-  name: string;
-  location: string;
-};
+import "server-only";
+import { db } from "./db";
+import type { Report } from "../common/types/reports";
 
-export async function getReports(): Promise<ReportsResponse[]> {
-  const mockData = [
-    {
-      "id": 1,
-      name: "Report 1",
-      location: "ul. Jaworskiego 16"
-    },
-    {
-      "id": 2,
-      name: "Report 2",
-      location: "ul. Warszawska"
-    },
-    {
-      "id": 3,
-      name: "Report 3",
-      location: "ul. Bakłarzano-Pomarańczy"
-    },
-  ]
+export async function getReports(): Promise<Report[]> {
+  const { rows } = await db.query<Report>(
+    "SELECT id, title, location, priority, metadata FROM reports ORDER BY id"
+  );
+  return rows;
+}
 
-  await new Promise(r => setTimeout(r, 5*1000));
-
-  return mockData
+export async function getReportById(id: number): Promise<Report | null> {
+  const { rows } = await db.query<Report>(
+    "SELECT id, title, location, priority, metadata FROM reports WHERE id = $1",
+    [id]
+  );
+  return rows[0] ?? null;
 }

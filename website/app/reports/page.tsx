@@ -10,6 +10,7 @@ export default async function Page() {
 
   return (<div>
     <p>Available Reports</p>
+    <button><a href="/reports/add">Add Report</a></button>
     <Suspense fallback={<Loading />}>
       <Reports reports={reports}/>
     </Suspense>
