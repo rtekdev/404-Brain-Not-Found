@@ -19,9 +19,10 @@ export default function AlarmButton() {
       type="button"
       onClick={run}
       title="Pokaz: krytyczne i zwykłe zgłoszenie w tej samej chwili"
-      className="ml-auto flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/50 bg-rose-500/10 px-3 text-sm font-medium text-rose-300 hover:bg-rose-500/20"
+      aria-label="Symuluj alarm"
+      className="ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-rose-500/50 bg-rose-500/10 px-2 text-sm sm:px-3 font-medium text-rose-300 hover:bg-rose-500/20"
     >
-      <Siren size={15} aria-hidden /> Symuluj alarm
+      <Siren size={15} aria-hidden /> <span className="hidden sm:inline">Symuluj alarm</span>
     </button>
   );
 }

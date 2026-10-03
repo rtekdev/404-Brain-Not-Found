@@ -25,6 +25,11 @@ describe("scoreReport", () => {
     expect(r.reasons).toContain("zagrożenie zdrowia lub życia");
   });
 
+  it("zasłabnięcie też jest zagrożeniem zdrowia", () => {
+    const r = scoreReport({ ...base, title: "Człowiek na ławce — prawdopodobne zasłabnięcie", description: "Nie reaguje." }, 0);
+    expect(r.level).toBe("krytyczny");
+  });
+
   it("to samo zdarzenie bez objawów zdrowotnych nie jest krytyczne", () => {
     expect(scoreReport(base, 0).level).not.toBe("krytyczny");
   });

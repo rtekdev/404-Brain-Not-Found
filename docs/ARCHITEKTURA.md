@@ -24,13 +24,13 @@ z `DATABASE_URL` uruchamia się też test integracyjny na bazie.
 | Panel boczny | `website/components/SidePanel.tsx`, `EventsPanel.tsx`, `ResourcesPanel.tsx`, `TransferPlanner.tsx` | przełącza widok Zgłoszenia / Zasoby i pokazuje listy, szczegóły i planer przekierowań |
 | Zgłoszenia | `website/lib/priority.ts`, `classify.ts` | nadaje zgłoszeniom priorytet i kategorię regułami zastępującymi model |
 | Zasoby | `website/lib/resources.ts` | liczy odczyty miar (energia, woda, odpady, ciepło) per obiekt i sektor oraz wnioski |
-| Przyjęcie zgłoszeń | `website/lib/intake.ts`, `components/IntakeSimulator.tsx` | zamienia wiadomość (Telegram, SMS) albo transkrypcję rozmowy w szkic zgłoszenia: kategoria, tytuł, osiedle, dzielnica |
-| Alarmy i plan reagowania | `website/lib/response.ts`, `components/AlertCenter.tsx`, `components/AlarmButton.tsx` | wybiera najważniejsze nowe zgłoszenie do animacji, układa skrót, status i kroki reagowania (reguły w miejsce modelu) |
+| Lista zgłoszeń | `website/app/reports/`, `lib/reports.ts` | `/reports` — lista od najpilniejszego z filtrem miast, szczegóły, formularz nowego zgłoszenia (dzielnica z geometrii) |
+| Alarmy i plan reagowania | `website/lib/response.ts`, `components/AlertCenter.tsx`, `components/AlarmButton.tsx`, `components/ClipPreview.tsx` | wybiera najważniejsze nowe zgłoszenie do animacji, układa skrót, status i kroki reagowania (reguły w miejsce modelu); nagranie z kamery (`public/clips/<kamera>.mp4`) z powiększeniem i paskiem klatek |
 | Ranking dzielnic | `website/lib/sectors.ts` | liczy otwarte i krytyczne zgłoszenia dzielnic i układa je od najpilniejszej |
 | Przekierowania | `website/lib/transfer.ts` | wycenia przeniesienie zasobu między sektorami i proponuje najlepsze trasy |
-| Baza danych | `website/database/01-schema.sql`, `02-city.sql`, `03-seed.sql` | definiuje schemat i wczytuje miasto oraz dane startowe przy pierwszym starcie Postgresa |
-| Dostęp do danych | `website/lib/city-repo.ts`, `lib/rows.ts`, `app/centrum/actions.ts` | wczytuje dane miasta, zapisuje zgłoszenia (z dzielnicą wyliczoną z geometrii) i zmiany statusu |
-| Symulacje | `website/lib/simulation.ts` | trzyma skrypty pokazu: zdarzenia kamer, Telegram, telefon, dzielnica pokazowa |
+| Baza danych | `website/database/01-schema.sql`, `02-city.sql`, `03-seed.sql`, `04-kielce.sql` | definiuje schemat i wczytuje miasta (Kraków, Kielce) oraz dane startowe przy pierwszym starcie Postgresa |
+| Dostęp do danych | `website/lib/city-repo.ts`, `lib/rows.ts`, `app/centrum/actions.ts` | wczytuje listę miast i dane wybranego miasta (`/centrum?miasto=`; obiekty należą do miasta przez sektor), zapisuje zgłoszenia (z dzielnicą wyliczoną z geometrii) i zmiany statusu |
+| Symulacje | `website/lib/simulation.ts` | trzyma skrypt alarmu na pokaz (Kraków) i dzielnicę pokazową |
 | Onboarding miasta | `website/scripts/build-city.mjs` | pobiera z OpenStreetMap granicę, dzielnice (jako sektory) i osiedla i zapisuje je jako `database/02-city.sql` |
 
 ## Przepływ — przekierowanie zasobu między sektorami

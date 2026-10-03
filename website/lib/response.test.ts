@@ -91,12 +91,27 @@ describe("pickAlert", () => {
 });
 
 describe("scenariusz alarmu na prezentację", () => {
-  it("wypadek wychodzi jako krytyczny, dziura jako zwykłe", () => {
-    const [crash, trash] = ALERT_SCENARIO.map((s) =>
-      scoreReport({ ...s, id: "x", status: "nowe", sector: null, createdAt: 0, unitId: null, confirmations: s.confirmations ?? 1 }, 0),
+  it("jedno krytyczne zgłoszenie z kamery: człowiek na ławce, pogotowie powiadomione", () => {
+    expect(ALERT_SCENARIO).toHaveLength(1);
+    const [s] = ALERT_SCENARIO;
+    expect(s.title).toMatch(/Człowiek na ławce/);
+    expect(s.title).toMatch(/zasłabnięcie/);
+    expect(s.source).toBe("kamera");
+    expect(s.cameraId).toBeTruthy();
+    expect(s.handledBy).toMatch(/^112 — pogotowie powiadomione/);
+    const p = scoreReport({ ...s, id: "x", status: "nowe", sector: null, createdAt: 0, unitId: null, confirmations: s.confirmations ?? 1 }, 0);
+    expect(p.level).toBe("krytyczny");
+  });
+
+  it("plan: 112 prowadzi, AED i dojazd dla ratowników, podgląd kamery", () => {
+    const [s] = ALERT_SCENARIO;
+    const p = responsePlan(
+      { ...s, id: "Z-4001", status: "nowe", sector: "D14", unitId: null, confirmations: 1, handledBy: s.handledBy ?? null, priority: { level: "krytyczny", score: 80 } },
+      { ...ctx, related: [] },
     );
-    expect(crash.level).toBe("krytyczny");
-    expect(trash.level).not.toBe("krytyczny");
+    const ids = p.steps.map((x) => x.id);
+    expect(p.status.label).toBe(`Przejęte przez ${s.handledBy}`);
+    expect(ids).toEqual(expect.arrayContaining(["112", "aed", "dojazd", "camera"]));
   });
 });
 

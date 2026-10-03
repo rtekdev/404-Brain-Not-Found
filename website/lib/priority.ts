@@ -14,7 +14,7 @@ const CATEGORY_WEIGHT: Record<Category, number> = {
   inne: 10,
 };
 
-const HEALTH = ["zemdl", "nieprzytomn", "przytomno", "krew", "krwaw", "ranny", "ranna", "poszkodowan", "zawał", "duszno"];
+const HEALTH = ["zemdl", "zasłab", "nieprzytomn", "przytomno", "krew", "krwaw", "ranny", "ranna", "poszkodowan", "zawał", "duszno"];
 
 /** Czy opis wskazuje na zagrożenie zdrowia lub życia (zemdlenie, krew, poszkodowani). */
 export function isHealthThreat(text: string): boolean {

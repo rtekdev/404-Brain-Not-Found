@@ -12,7 +12,7 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 
 ## Co działa
 
-- Strona główna dla mieszkańców: pełna nazwa SWIMM, numer telefonu (kliknięcie od razu dzwoni), SMS, Telegram, 112 i czat z asystentem AI. Numery są pokazowe. Czat odpowiada dopiero po ustawieniu `ANTHROPIC_API_KEY` w `website/.env`; bez klucza mówi, że jest niedostępny, i podaje telefon.
+- Strona główna dla mieszkańców: pełna nazwa SWIMM, numer telefonu (kliknięcie od razu dzwoni), SMS, Telegram, 112 i czat z asystentem AI — wszystko wyśrodkowane, czat zwinięty do jednej linii „Opisz swój problem, pomogę" i rozwija się po kliknięciu. Numery są pokazowe. Czat odpowiada dopiero po ustawieniu `ANTHROPIC_API_KEY` w `website/.env`; bez klucza mówi, że jest niedostępny, i podaje telefon.
 - Panel urzędu (mapa, zgłoszenia, zasoby) jest pod adresem `/centrum`.
 
 - Dyspozytor widzi Kraków podzielony na 18 dzielnic (sektory D01–D18), z granicami pobranymi automatycznie z otwartych map.
@@ -23,7 +23,7 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 - Sześć kamer w centrum Krakowa pokazuje prawdziwy obraz na żywo (WebCamera.pl).
 - W widoku całego miasta panel pokazuje ranking dzielnic (otwarte, krytyczne, najwyższy priorytet); kliknięcie dzielnicy pokazuje jej zgłoszenia.
 - Lista zgłoszeń `/reports` (w tym samym wyglądzie co mapa): od najpilniejszego, zakładki Otwarte / Krytyczne / Zamknięte, wybór miasta, szczegóły z oceną AI i przejściem na mapę; formularz `/reports/add`.
-- Pokaz alarmu: przycisk „Symuluj alarm" w górnym pasku (przycisk „Symuluj" z panelu zgłoszeń usunięty).
+- Pokaz alarmu: przycisk „Symuluj alarm" w górnym pasku — kamera K18 w parku przy Tauron Arenie: człowiek na ławce, prawdopodobne zasłabnięcie, pogotowie powiadomione; w komunikacie miniatura nagrania do powiększenia z paskiem klatek (plik `website/public/clips/K18.mp4`, jeszcze nie dodany). Pokazy Telegrama, telefonu i kamery wycięte; scenariusz prezentacji (9 kroków) w [SCENARIUSZ_DEMO.md](SCENARIUSZ_DEMO.md).
 - Widok „Zasoby": zużycie i produkcja energii, woda, odpady i ciepło — dla każdego obiektu, sektora i całego miasta, z odczytami na żywo (dane pokazowe).
 - Na oddalonej mapie dane z sektorów spływają animacją do centrali; po przybliżeniu — z obiektów do sektora.
 - Asystent wskazuje anomalie w pomiarach i łączy je ze zgłoszeniami mieszkańców (np. straty wody ↔ zgłoszony wyciek).
