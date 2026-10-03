@@ -30,12 +30,6 @@ export default function Navbar() {
           ))}
         </ul>
       </nav>
-      <div className="ml-auto flex items-center gap-3 text-sm text-muted">
-        <span className="hidden sm:inline">Dyspozytor miejski</span>
-        <span className="grid size-8 place-items-center rounded-full bg-panel-hover text-xs font-medium text-foreground">
-          DM
-        </span>
-      </div>
     </header>
   );
 }
