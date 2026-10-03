@@ -1,12 +1,6 @@
-import Image from "next/image";
+import CityMapLoader from "@/components/CityMapLoader";
 
 
 export default function Home() {
-  return (
-    <div className="">
-      <main className="">
-        <p>Home page</p>
-      </main>
-    </div>
-  );
+  return <CityMapLoader />;
 }

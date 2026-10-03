@@ -1,6 +1,5 @@
-export default function Map() {
+import CityMapLoader from "@/components/CityMapLoader";
 
-  return (<div>
-    <p>map page</p>
-  </div>)
+export default function MapPage() {
+  return <CityMapLoader />;
 }

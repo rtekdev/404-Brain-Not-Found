@@ -4,13 +4,24 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
+      - "${PORT:-3000}:3000"
     environment:
-      - WATCHPACK_POLLING=true
+      - NEXT_TELEMETRY_DISABLED=1
+    # Hot reload: `docker compose up --watch` synchronizuje pliki do kontenera.
+    # Bind mount z Windowsa nie przekazuje zdarzeń zmian plików do Turbopacka.
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - node_modules/
+            - .next/
+            - public/maplibre/
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: package-lock.json
 
   db:
     image: postgres:17
