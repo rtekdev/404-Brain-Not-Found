@@ -7,8 +7,12 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - NEXT_TELEMETRY_DISABLED=1
+      - DATABASE_URL=postgres://postgres:pass@db:5432/reports
     # Hot reload: `docker compose up --watch` synchronizuje pliki do kontenera.
     # Bind mount z Windowsa nie przekazuje zdarzeń zmian plików do Turbopacka.
+    depends_on:
+      db:
+        condition: service_healthy
     develop:
       watch:
         - action: sync
@@ -18,7 +22,30 @@ services:
             - node_modules/
             - .next/
             - public/maplibre/
+            - .env.local
         - action: rebuild
           path: package.json
         - action: rebuild
           path: package-lock.json
+
+  db:
+    image: postgres:17
+    container_name: db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: reports
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reports"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

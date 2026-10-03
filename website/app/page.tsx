@@ -5,6 +5,7 @@ import { APP_FULL_NAME, CONTACT, telHref } from "@/lib/meta";
 const linkClass =
   "flex items-center gap-2 rounded-lg border border-line bg-panel-solid px-3 py-2 hover:bg-panel-hover";
 
+
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col overflow-y-auto px-4 py-6">
