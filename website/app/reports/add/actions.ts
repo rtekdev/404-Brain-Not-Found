@@ -37,8 +37,10 @@ export async function createReport(_prev: FormState, formData: FormData): Promis
   }
 
   const d = parsed.data;
+  const { longitude, latitude, ...rest } = d;
   const id = await insertReport({
-    ...d,
+    ...rest,
+    position: [longitude, latitude],
     // same rule as your buildReports(): "nowe" has no unit yet
     unitId: d.status === "nowe" ? null : unitForCategory(d.category).id,
   });

@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./db";
-import { rowToReport, rowToSector, sectorOf, type ReportRow, type SectorRow } from "./rows";
-import type { Category, Report, Source, Status } from "@/lib/types";
+import type { Camera, Category, LngLat, Report, Source, Status } from "@/lib/types";
+import { rowToCamera, rowToReport, rowToSector, sectorOf, type CameraRow, type ReportRow, type SectorRow } from "./rows";
 
 /** Zgłoszenie z nazwą dzielnicy i miasta — do listy i szczegółów pod /reports. */
 export type ReportItem = Report & { sectorName: string | null; citySlug: string | null; cityName: string | null };
@@ -31,9 +31,9 @@ export async function getReportById(id: string): Promise<ReportItem | null> {
   return rows[0] ? toItem(rows[0]) : null;
 }
 
-export async function getCameras(): Promise<{ id: string; name: string }[]> {
-  const { rows } = await db.query("SELECT id, name FROM cameras ORDER BY id");
-  return rows;
+export async function getCameras(): Promise<Camera[]> {
+  const { rows } = await db.query<CameraRow>("SELECT * FROM cameras ORDER BY id");
+  return rows.map(rowToCamera);
 }
 
 export interface NewReport {
@@ -42,8 +42,8 @@ export interface NewReport {
   category: Category;
   source: Source;
   status: Status;
-  longitude: number;
-  latitude: number;
+  /** [długość, szerokość] — jak w całej aplikacji. */
+  position: LngLat;
   unitId: string | null;
   confirmations: number;
   blocking: boolean;
@@ -54,14 +54,14 @@ export interface NewReport {
 export async function insertReport(r: NewReport): Promise<string> {
   // Dzielnica z geometrii — bez niej zgłoszenie nie trafi na mapę żadnego miasta.
   const { rows: sectors } = await db.query<SectorRow>("SELECT * FROM sectors");
-  const sector = sectorOf([r.longitude, r.latitude], sectors.map((x) => rowToSector(x).feature));
+  const sector = sectorOf(r.position, sectors.map((x) => rowToSector(x).feature));
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO reports
        (id, title, description, category, source, status, longitude, latitude, sector,
         unit_id, confirmations, blocking, camera_id, confidence)
      VALUES ('Z-' || nextval('report_id_seq'), $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING id`,
-    [r.title, r.description, r.category, r.source, r.status, r.longitude, r.latitude, sector,
+    [r.title, r.description, r.category, r.source, r.status, r.position[0], r.position[1], sector,
     r.unitId, r.confirmations, r.blocking, r.cameraId, r.confidence]
   );
   return rows[0].id;

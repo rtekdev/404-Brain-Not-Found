@@ -92,3 +92,15 @@ CREATE TABLE access_points (
 CREATE INDEX reports_created_at_idx ON reports (created_at DESC);
 CREATE INDEX reports_status_idx ON reports (status);
 CREATE INDEX reports_sector_idx ON reports (sector);
+
+-- Powiadomienie o nowym zgłoszeniu (LISTEN new_report → /api/reports/stream → odświeżenie /reports).
+CREATE OR REPLACE FUNCTION notify_new_report() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('new_report', NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER reports_notify
+AFTER INSERT ON reports
+FOR EACH ROW EXECUTE FUNCTION notify_new_report();

@@ -24,7 +24,7 @@ z `DATABASE_URL` uruchamia się też test integracyjny na bazie.
 | Panel boczny | `website/components/SidePanel.tsx`, `EventsPanel.tsx`, `ResourcesPanel.tsx`, `TransferPlanner.tsx` | przełącza widok Zgłoszenia / Zasoby i pokazuje listy, szczegóły i planer przekierowań |
 | Zgłoszenia | `website/lib/priority.ts`, `classify.ts` | nadaje zgłoszeniom priorytet i kategorię regułami zastępującymi model |
 | Zasoby | `website/lib/resources.ts` | liczy odczyty miar (energia, woda, odpady, ciepło) per obiekt i sektor oraz wnioski |
-| Lista zgłoszeń | `website/app/reports/`, `lib/reports.ts` | `/reports` — lista od najpilniejszego z filtrem miast, szczegóły, formularz nowego zgłoszenia (dzielnica z geometrii) |
+| Lista zgłoszeń | `website/app/reports/`, `lib/reports.ts`, `lib/report-event.ts`, `app/api/reports/` | `/reports` — lista od najpilniejszego z filtrem miast, odświeżana na żywo (trigger `NOTIFY new_report` → `LISTEN` → SSE `/api/reports/stream`), szczegóły, formularz nowego zgłoszenia (położenie z wybranej kamery albo wpisane; dzielnica z geometrii) |
 | Alarmy i plan reagowania | `website/lib/response.ts`, `components/AlertCenter.tsx`, `components/AlarmButton.tsx`, `components/ClipPreview.tsx` | wybiera najważniejsze nowe zgłoszenie do animacji, układa skrót, status i kroki reagowania (reguły w miejsce modelu); nagranie z kamery (`public/clips/<kamera>.mp4`) z powiększeniem i paskiem klatek |
 | Ranking dzielnic | `website/lib/sectors.ts` | liczy otwarte i krytyczne zgłoszenia dzielnic i układa je od najpilniejszej |
 | Przekierowania | `website/lib/transfer.ts` | wycenia przeniesienie zasobu między sektorami i proponuje najlepsze trasy |

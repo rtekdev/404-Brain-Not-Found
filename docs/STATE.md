@@ -60,7 +60,7 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 
 | Środowisko | URL | Stan |
 |---|---|---|
-| lokalne | http://localhost:3000 | działa (`docker compose up -d --build` w `website/`) |
+| lokalne | http://localhost:3000 | działa (`docker compose up -d --build` w `website/` — tryb deweloperski, `Dockerfile.dev`, kod podmontowany) |
 | produkcja / demo | — | nie wdrożone |
 
 ### Wersje

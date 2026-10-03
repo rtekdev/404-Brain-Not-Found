@@ -19,6 +19,27 @@
 
 ## Wpisy
 
+### 2026-10-04 — Scalenie z main (zgłoszenia na żywo) i porządek w gałęziach
+
+Autor: Claude (Opus) + rtek
+
+**Zrobione:**
+- Scalony `origin/main` (PR #8–#11: zgłoszenia na żywo przez SSE, położenie z kamery w formularzu, tryb
+  deweloperski Dockera) z `feature/alarmy`; konflikt w `app/reports/page.tsx` — zostaje `LiveReports`.
+- Naprawione błędy z main, przez które nie przechodził build i nie wstawała świeża baza: średnik w środku
+  `CREATE TABLE reports` i usunięte kolumny `longitude`/`latitude` (wróciły, trigger `NOTIFY` zostaje);
+  `LngLat` z `null` (40 błędów typów) — wraca `[number, number]`; zamienione długość i szerokość przy zapisie;
+  formularz wysyłał pole `position`, którego akcja nie umiała odczytać — teraz kamera wpisuje swoje
+  współrzędne (tylko do odczytu), bez kamery wpisuje się je ręcznie.
+- Trigger `reports_notify` dołożony do lokalnej bazy bez kasowania danych.
+- Wszystko na `main`; pozostałe gałęzie (lokalne i zdalne) usunięte — każda była w całości w main.
+
+**Zweryfikowane — jak dokładnie:**
+- `tsc`, `eslint .`, `npm run build` czyste; `npm test` 69/69 na bazie lokalnej i na świeżej bazie zbudowanej
+  ze wszystkich `database/*.sql` (55 zgłoszeń, 30 kamer, trigger obecny).
+- Kontener (tryb deweloperski): wszystkie trasy 200; wpis do `reports` → zdarzenie w `/api/reports/stream`;
+  formularz z kamerą K18 → Z-1103 zapisane z 19.9941 / 50.0683, D14 (testowy wpis usunięty).
+
 ### 2026-10-04 — Naprawa builda po merge'u i odporność serwera
 
 Autor: Claude (Opus) + rtek
