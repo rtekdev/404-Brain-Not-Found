@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bot, Phone, Send, Sparkles, X } from "lucide-react";
-import type { IntakeScenario } from "@/lib/demo-data";
+import type { IntakeScenario } from "@/lib/simulation";
 import { parseMessage, type IntakeDraft } from "@/lib/intake";
 import { CATEGORY_LABEL } from "@/lib/meta";
 import type { LngLat, Place } from "@/lib/types";

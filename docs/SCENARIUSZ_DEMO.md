@@ -8,9 +8,10 @@ z dzielnicy, która ma rezerwę.
 
 ## Przygotowanie (przed wejściem na scenę)
 
-1. W `website/`: `docker compose up --build --watch` (albo `npm run dev`).
-2. Otwórz `http://localhost:3000/centrum` (port z Dockera) i **odśwież stronę** — dane pokazowe
-   wracają do stanu startowego (38 zgłoszeń, po 2 w każdej dzielnicy, 4 w Podgórzu).
+1. W `website/`: `docker compose down -v`, potem `docker compose up -d --build` (baza i aplikacja od zera).
+2. Otwórz `http://localhost:3000/centrum` — baza jest w stanie startowym (38 zgłoszeń, po 2 w każdej
+   dzielnicy, 4 w Podgórzu). Zgłoszenia przyjęte w trakcie próby zostają w bazie — przed pokazem
+   powtórz krok 1.
 3. Poczekaj, aż mapa pokaże granice dzielnic (pierwsze ładowanie w trybie deweloperskim trwa do ~10 s).
 4. Przeglądarka na pełnym ekranie, szerokość min. 1280 px.
 
@@ -30,6 +31,9 @@ Każdy krok: **co robisz** → **co widać** (to jest jednocześnie lista kontro
 | 8 | Kliknij pierwszą propozycję **D07 → D13** | Planer: suwak z udziałem dostaw Zwierzyńca (ZUW Bielany), zyski (niedobór D13 mniejszy, pokrycie rośnie), straty przesyłu, bilans w zł/h. Na mapie przerywany łuk D07 → D13. |
 | 9 | **Zastosuj** | Łuk staje się ciągły z etykietą „D07 → D13 · +… m³/h"; przekierowanie na liście z możliwością cofnięcia. |
 | 10 | (opcjonalnie) Zakładka **Zgłoszenia**, kliknij kamerę na Rynku | Obraz na żywo z Rynku Głównego (WebCamera.pl). |
+| 11 | **Symuluj alarm** (górny pasek, czerwony przycisk) | Po ~1 s: czerwona karta „Krytyczne zgłoszenie +1" — mężczyzna zemdlał po upadku w parku przy Tauron Arenie (alejka obok food trucków, D14 Czyżyny), krew z głowy, „Przejęte przez 112 — PRM w drodze". Syrena, pulsująca poświata krawędzi ekranu, krótki sygnał. Mapa i panel dalej działają. Gdy baza/serwer nie odpowie — ten sam alarm z danych lokalnych po ~3 s. |
+| 12 | **Szczegóły i kroki (2)** | Oba od najważniejszego. Wypadek: 112 prowadzi akcję, Straż Miejska — patrol z AED do przyjazdu PRM, wskaż ratownikom dojazd (pinezka GPS), **prawdopodobna przyczyna: dziura w alejce 10 m obok — zabezpiecz i oznakuj (Zarząd Dróg)**. Drugie: dziura w alejce — „Przekaż do: Zarząd Dróg". |
+| 13 | Kliknij **Powiadom** przy Straży Miejskiej, potem **Pokaż na mapie** | Krok „zrobione", komunikat „Powiadomiono: Straż Miejska"; mapa przybliża Tauron Arenę i karta zgłoszenia z oceną AI („zagrożenie zdrowia lub życia"). |
 
 Zdania na każdy krok:
 
@@ -37,6 +41,7 @@ Zdania na każdy krok:
 - 3–6: „Mieszkaniec pisze albo dzwoni tak, jak mu wygodnie. AI zamienia to w zgłoszenie z kategorią i miejscem."
 - 7: „Zgłoszenia mieszkańców i pomiary sieci mówią to samo — to nie przypadek, to wyciek."
 - 8–9: „Zanim ekipa naprawi rurę, kierujemy wodę z Bielan, gdzie jest rezerwa. System od razu liczy koszt i zysk."
+- 11–13: „Gdy dzieje się coś poważnego, system nie zatrzymuje pracy — ostrzega i podpowiada, co miasto może zrobić, skoro 112 już działa. I sam łączy wypadek z jego przyczyną — dziurą, którą trzeba zabezpieczyć, zanim przewróci się ktoś następny."
 
 ## Kanały zgłoszeń — trzy warianty
 
@@ -56,5 +61,5 @@ zgłoszenia na serwerze.
 - Mapa się nie ładuje (brak internetu → brak podkładu CARTO): granice, dzielnice i znaczniki nadal
   działają — pokazuj bez podkładu.
 - Kamera na żywo nie odpowiada: pomiń krok 10 — reszta nie zależy od zewnętrznych serwisów.
-- Coś poszło nie tak w trakcie: odśwież stronę — stan wraca do startowego w kilka sekund.
+- Coś poszło nie tak w trakcie: `docker compose down -v && docker compose up -d --build` — baza wraca do stanu startowego (ok. 1 min).
 - Bot / numer (warianty B, C) nie odpowiada: przełącz na wariant A — ten sam efekt na ekranie.

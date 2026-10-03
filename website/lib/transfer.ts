@@ -1,5 +1,5 @@
 import type { LngLat, Metric, Sector } from "./types";
-import { METRIC, fmt, needFactor, type Reading } from "./resources";
+import { METRIC, fmt, type Reading } from "./resources";
 
 // Przekierowanie części zasobu (produkcji / dostaw / zdolności odbioru) z sektora A do sektora B.
 // Model uproszczony i wyjaśnialny: straty rosną z odległością, wartość mierzymy w złotych.
@@ -42,11 +42,10 @@ export function distanceKm(a: LngLat, b: LngLat): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-type Ctx = { metric: Metric; sector: string };
-const need = (r: Reading, c: Ctx) => r.primary * needFactor(c.metric, c.sector);
-const surplus = (r: Reading, c: Ctx) => Math.max(0, r.secondary - need(r, c));
-const deficit = (r: Reading, c: Ctx) => Math.max(0, need(r, c) - r.secondary);
-const coverage = (r: Reading, c: Ctx) => (r.primary > 0 ? r.secondary / need(r, c) : 1);
+const need = (r: Reading) => r.need ?? r.primary;
+const surplus = (r: Reading) => Math.max(0, r.secondary - need(r));
+const deficit = (r: Reading) => Math.max(0, need(r) - r.secondary);
+const coverage = (r: Reading) => (r.primary > 0 ? r.secondary / need(r) : 1);
 /** Drobne wahania odczytów nie powinny wywoływać ostrzeżeń. */
 const EPS = 0.02;
 
@@ -81,11 +80,9 @@ export function estimate(t: Omit<Transfer, "id">, base: Record<string, Reading>,
   const delivered = amount * (1 - lossShare);
   const lost = amount - delivered;
 
-  const cs = { metric: t.metric, sector: t.from };
-  const cd = { metric: t.metric, sector: t.to };
-  const fromSurplus = Math.min(amount, surplus(src, cs));
+  const fromSurplus = Math.min(amount, surplus(src));
   const fromNeed = amount - fromSurplus;
-  const useful = Math.min(delivered, deficit(dst, cd));
+  const useful = Math.min(delivered, deficit(dst));
   const wasted = delivered - useful;
 
   const net = useful * e.price - fromSurplus * e.surplusValue - fromNeed * e.price;
@@ -96,13 +93,13 @@ export function estimate(t: Omit<Transfer, "id">, base: Record<string, Reading>,
   const gains: string[] = [];
   const costs: string[] = [];
   if (useful > 0)
-    gains.push(`${t.to}: niedobór mniejszy o ${v(useful)} — pokrycie ${pct(coverage(dst, cd))} → ${pct(coverage(after(dst, delivered), cd))}`);
+    gains.push(`${t.to}: niedobór mniejszy o ${v(useful)} — pokrycie ${pct(coverage(dst))} → ${pct(coverage(after(dst, delivered)))}`);
   if (fromSurplus > 0)
     gains.push(`${t.from}: zagospodarowana nadwyżka ${v(fromSurplus)}${e.surplusValue ? ` (zamiast sprzedaży po ${e.surplusValue} zł)` : ""}`);
   if (lost > 0) costs.push(`Straty na trasie ${v(lost)} (${pct(lossShare)} · ${km.toFixed(1)} km, ${e.lossLabel})`);
   const shortfall = fromNeed > amount * EPS;
   if (shortfall)
-    costs.push(`${t.from}: pokrycie ${pct(coverage(src, cs))} → ${pct(coverage(after(src, -amount), cs))} — brakujące ${v(fromNeed)} trzeba odkupić`);
+    costs.push(`${t.from}: pokrycie ${pct(coverage(src))} → ${pct(coverage(after(src, -amount)))} — brakujące ${v(fromNeed)} trzeba odkupić`);
   if (wasted > delivered * EPS) costs.push(`${t.to}: ${v(wasted)} ponad potrzeby — nie zostanie wykorzystane`);
 
   return {
@@ -115,7 +112,7 @@ export function estimate(t: Omit<Transfer, "id">, base: Record<string, Reading>,
     netDaily: e.perDay ? net : net * 24,
     gains,
     costs,
-    risky: shortfall && coverage(after(src, -amount), cs) < 1 - EPS,
+    risky: shortfall && coverage(after(src, -amount)) < 1 - EPS,
   };
 }
 
@@ -148,8 +145,8 @@ export function suggest(metric: Metric, base: Record<string, Reading>, sectors: 
       const src = base[a.id];
       const dst = base[b.id];
       if (a.id === b.id || !src || !dst || src.secondary <= 0) continue;
-      const s = surplus(src, { metric, sector: a.id });
-      const gap = deficit(dst, { metric, sector: b.id });
+      const s = surplus(src);
+      const gap = deficit(dst);
       if (s <= 0 || gap <= 0) continue;
       const loss = Math.min(0.9, distanceKm(a.anchor, b.anchor) * e.lossPerKm);
       // 90% nadwyżki — zapas na wahania odczytów.

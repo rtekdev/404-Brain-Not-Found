@@ -85,7 +85,8 @@ export default function MapView(props: Props) {
     });
     mapRef.current = map;
 
-    map.on("load", () => {
+    // style.load zamiast load: nie czekamy na wszystkie kafelki podkładu, warstwy miasta od razu.
+    map.once("style.load", () => {
       const firstSymbol = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
 
       // Zieleń i wody wyraźniejsze niż w bazowym stylu.

@@ -3,10 +3,11 @@ import type { Sector } from "./types";
 import type { Reading } from "./resources";
 import { applyTransfers, distanceKm, estimate, money, suggest } from "./transfer";
 
+const profile = { pop: 10000, waterLoss: 0.1, waterReserve: 1, wasteCapacity: 1, rooftopPv: 1 };
 const sectors: Sector[] = [
-  { id: "A", name: "Nadwyżka", areaKm2: 1, anchor: [20.6, 50.86] },
-  { id: "B", name: "Niedobór", areaKm2: 1, anchor: [20.63, 50.87] },
-  { id: "C", name: "Na styk", areaKm2: 1, anchor: [20.6, 50.89] },
+  { id: "A", name: "Nadwyżka", areaKm2: 1, anchor: [20.6, 50.86], profile },
+  { id: "B", name: "Niedobór", areaKm2: 1, anchor: [20.63, 50.87], profile },
+  { id: "C", name: "Na styk", areaKm2: 1, anchor: [20.6, 50.89], profile },
 ];
 
 // Energia: A produkuje 10 przy zużyciu 4 (nadwyżka 6), B produkuje 1 przy zużyciu 8, C jest pokryty dokładnie.

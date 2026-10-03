@@ -1,10 +1,11 @@
 // Onboarding miasta: pobiera z OpenStreetMap granicę, dzielnice (jako sektory) i osiedla
-// i zapisuje statyczne GeoJSON-y do public/data/<slug>/.
+// i zapisuje je jako SQL do database/02-city.sql (wczytywany przy starcie bazy).
 //
 // Użycie: node scripts/build-city.mjs
+//         node scripts/build-city.mjs --from-geojson <katalog>   (bez pobierania — z plików GeoJSON)
 // Dane © OpenStreetMap contributors (ODbL).
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import * as turf from "@turf/turf";
 
 const CITY = {
@@ -35,7 +36,7 @@ const CITY = {
 };
 
 const UA = "hackyeah-404-brain-not-found/0.1";
-const OUT = new URL(`../public/data/${CITY.slug}/`, import.meta.url);
+const OUT = new URL("../database/02-city.sql", import.meta.url);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function fetchJson(url, init) {
@@ -105,16 +106,47 @@ async function fetchPlaces(boundary, sectors) {
   return turf.featureCollection(places);
 }
 
-const boundary = await fetchBoundary();
-console.log(`${CITY.name}: granica OK, ${Math.round(turf.area(boundary) / 1e6)} km²`);
-const sectors = await fetchDistricts(boundary);
-const places = await fetchPlaces(boundary, sectors);
+function toSql(boundary, sectors, places) {
+  const round = (x) => JSON.parse(JSON.stringify(x, (k, v) => (typeof v === "number" ? Math.round(v * 1e5) / 1e5 : v)));
+  const q = (v) => `'${String(v).replaceAll("'", "''")}'`;
+  const json = (v) => `${q(JSON.stringify(round(v)))}::jsonb`;
+  const lines = [
+    `-- Wygenerowane przez scripts/build-city.mjs — nie edytuj ręcznie. Dane © OpenStreetMap contributors (ODbL).`,
+    `INSERT INTO city (slug, name, boundary) VALUES (${q(CITY.slug)}, ${q(CITY.name)}, ${json(boundary.geometry)});`,
+    ``,
+    `INSERT INTO sectors (id, city_slug, name, area_km2, anchor_lon, anchor_lat, geometry) VALUES`,
+    sectors.features
+      .map((f) => {
+        const p = f.properties;
+        const [lon, lat] = round(p.anchor);
+        return `  (${q(p.id)}, ${q(CITY.slug)}, ${q(p.name)}, ${p.areaKm2}, ${lon}, ${lat}, ${json(f.geometry)})`;
+      })
+      .join(",\n") + ";",
+    ``,
+    `INSERT INTO places (name, longitude, latitude, sector) VALUES`,
+    places.features
+      .map((f) => {
+        const [lon, lat] = round(f.geometry.coordinates);
+        return `  (${q(f.properties.name)}, ${lon}, ${lat}, ${q(f.properties.sector)})`;
+      })
+      .join(",\n") + ";",
+    ``,
+  ];
+  return lines.join("\n");
+}
 
-await mkdir(OUT, { recursive: true });
-const round = (fc) =>
-  JSON.parse(JSON.stringify(fc, (k, v) => (typeof v === "number" ? Math.round(v * 1e5) / 1e5 : v)));
-await writeFile(new URL("boundary.geojson", OUT), JSON.stringify(round(boundary)));
-await writeFile(new URL("sectors.geojson", OUT), JSON.stringify(round(sectors)));
-await writeFile(new URL("places.geojson", OUT), JSON.stringify(round(places)));
+const fromIdx = process.argv.indexOf("--from-geojson");
+let boundary, sectors, places;
+if (fromIdx > 0) {
+  const dir = process.argv[fromIdx + 1];
+  const load = async (f) => JSON.parse(await readFile(`${dir}/${f}.geojson`, "utf8"));
+  [boundary, sectors, places] = await Promise.all([load("boundary"), load("sectors"), load("places")]);
+} else {
+  boundary = await fetchBoundary();
+  console.log(`${CITY.name}: granica OK, ${Math.round(turf.area(boundary) / 1e6)} km²`);
+  sectors = await fetchDistricts(boundary);
+  places = await fetchPlaces(boundary, sectors);
+}
 
-console.log(`${CITY.name}: ${sectors.features.length} sektorów (dzielnic), ${places.features.length} osiedli`);
+await writeFile(OUT, toSql(boundary, sectors, places));
+console.log(`${CITY.name}: ${sectors.features.length} sektorów (dzielnic), ${places.features.length} osiedli → database/02-city.sql`);

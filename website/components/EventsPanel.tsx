@@ -13,8 +13,7 @@ import {
   unitById,
   unitForCategory,
 } from "@/lib/meta";
-import { CAMERAS } from "@/lib/demo-data";
-import type { Sector, Status } from "@/lib/types";
+import type { Camera, Sector, Status } from "@/lib/types";
 import { rankSectors, type SectorFilter } from "@/lib/sectors";
 import { CATEGORY_ICON, SOURCE_ICON } from "./icons";
 import CameraFeed from "./CameraFeed";
@@ -29,6 +28,7 @@ interface Props {
   sectorFilter: string | null;
   onClearSector: () => void;
   sectors: Sector[];
+  cameras: Camera[];
   onSector: (id: string) => void;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, patch: { status?: Status; unitId?: string | null }) => void;
@@ -50,7 +50,7 @@ function PriorityBadge({ r }: { r: ScoredReport }) {
   );
 }
 
-function Detail({ r, onBack, onUpdate, now }: { r: ScoredReport; onBack: () => void; onUpdate: Props["onUpdate"]; now: number }) {
+function Detail({ r, onBack, onUpdate, now, cameras }: { r: ScoredReport; onBack: () => void; onUpdate: Props["onUpdate"]; now: number; cameras: Camera[] }) {
   const SourceIcon = SOURCE_ICON[r.source];
   const suggested = unitForCategory(r.category);
   const unit = unitById(r.unitId);
@@ -73,7 +73,7 @@ function Detail({ r, onBack, onUpdate, now }: { r: ScoredReport; onBack: () => v
         {r.source === "kamera" && r.cameraId && (
           <CameraFeed
             seed={r.cameraId}
-            live={CAMERAS.find((c) => c.id === r.cameraId)?.live}
+            live={cameras.find((c) => c.id === r.cameraId)?.live}
             detection={{ label: r.title, confidence: r.confidence, category: r.category }} />
         )}
 
@@ -184,7 +184,7 @@ export default function EventsPanel(p: Props) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {selected ? (
-        <Detail r={selected} now={p.now} onBack={() => p.onSelect(null)} onUpdate={p.onUpdate} />
+        <Detail r={selected} now={p.now} cameras={p.cameras} onBack={() => p.onSelect(null)} onUpdate={p.onUpdate} />
       ) : (
         <>
           <div className="border-b border-line px-4 pb-3 pt-3.5">

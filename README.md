@@ -2,42 +2,34 @@
 
 ## Uruchomienie w Dockerze
 
-Wymagany Docker z Compose v2.22+. Wszystkie komendy uruchamiamy z katalogu `website/`.
+Wymagany Docker z Compose v2. Jedna komenda stawia aplikację (Next.js, build produkcyjny) i bazę PostgreSQL:
 
 ```bash
 git clone git@github.com:rtekdev/404-Brain-Not-Found.git
 cd 404-Brain-Not-Found/website
+docker compose up -d --build
 ```
 
-### Tryb deweloperski (hot reload)
+Otwórz http://localhost:3000 (mapa dyspozytora: http://localhost:3000/centrum). Inny port: `PORT=8080 docker compose up -d --build`.
 
-```bash
-docker compose up --build --watch
-```
+- Baza przy pierwszym starcie wczytuje `database/*.sql`: schemat, Kraków (dzielnice, osiedla) i dane startowe.
+- Po zmianach w kodzie: `docker compose up -d --build` (przebudowuje obraz aplikacji).
+- Baza od zera (np. przed prezentacją): `docker compose down -v`, potem `docker compose up -d --build`.
+- Zatrzymanie: `docker compose down`.
 
-Otwórz http://localhost:3000. Zmiany w plikach są synchronizowane do kontenera, a Next.js przeładowuje stronę. Zmiana `package.json` przebudowuje obraz.
-
-Inny port: `PORT=3001 docker compose up --build --watch`.
-
-### Tryb produkcyjny (Next.js standalone + nginx)
-
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
-```
-
-Otwórz http://localhost (port 80, inny przez `PORT=8080`). Zatrzymanie: `docker compose -f docker-compose.prod.yml down`.
+Testy: `npm test`; z bazą także test integracyjny — w Git Bash: `DATABASE_URL=postgres://postgres:pass@localhost:5432/reports npm test`.
 
 ## Uruchomienie bez Dockera
 
-Wymagany Node.js 20.9+.
+Wymagany Node.js 20.9+ i baza z Dockera (`docker compose up -d db`).
 
 ```bash
 cd website
 npm install
-npm run dev
+DATABASE_URL=postgres://postgres:pass@localhost:5432/reports npm run dev
 ```
 
-Otwórz http://localhost:3000.
+Otwórz http://localhost:3000 — tryb deweloperski z przeładowaniem po zmianach.
 
 ## Dane miasta
 

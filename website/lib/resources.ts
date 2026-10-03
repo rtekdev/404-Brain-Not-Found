@@ -1,4 +1,4 @@
-import type { Asset, LngLat, Metric, Meter, Report } from "./types";
+import type { Asset, LngLat, Metric, Meter, Report, Sector } from "./types";
 
 // Pomiary zasobów miejskich (dane demonstracyjne, fikcyjne). Każda miara ma dwa strumienie:
 // `primary` (to, co płynie do centrali — zwykle zużycie) i `secondary` (produkcja / dostawa / odbiór).
@@ -28,52 +28,11 @@ export const METRIC = Object.fromEntries(METRICS.map((m) => [m.id, m])) as Recor
 // Punkt umowny między dzielnicami, żeby węzeł nie zasłaniał etykiet sektorów.
 export const HUB: { name: string; position: LngLat } = { name: "Centrala · Kraków", position: [19.985, 50.04] };
 
-interface SectorProfile {
-  /** Liczba mieszkańców (fikcyjna, do skalowania). */
-  pop: number;
-  /** Straty wody w sieci (udział dostarczonej). */
-  waterLoss: number;
-  /** Zdolność dostaw wody względem potrzeb (zbiorniki, ujęcia); >1 = rezerwa. */
-  waterReserve: number;
-  /** Zdolność odbioru odpadów względem wytwarzanych; <1 = zaległości. */
-  wasteCapacity: number;
-  /** Udział dachów z fotowoltaiką (względny). */
-  rooftopPv: number;
-}
-
-export const PROFILE: Record<string, SectorProfile> = {
-  // Dzielnice Krakowa; liczba mieszkańców przybliżona, pozostałe parametry fikcyjne.
-  D01: { pop: 31000, waterLoss: 0.09, waterReserve: 0.94, wasteCapacity: 0.95, rooftopPv: 0.3 },
-  D02: { pop: 29000, waterLoss: 0.08, waterReserve: 0.97, wasteCapacity: 1.02, rooftopPv: 0.6 },
-  D03: { pop: 47000, waterLoss: 0.07, waterReserve: 0.98, wasteCapacity: 1.04, rooftopPv: 0.8 },
-  D04: { pop: 72000, waterLoss: 0.08, waterReserve: 0.96, wasteCapacity: 1.0, rooftopPv: 1.1 },
-  D05: { pop: 31000, waterLoss: 0.07, waterReserve: 1.0, wasteCapacity: 0.99, rooftopPv: 0.7 },
-  D06: { pop: 23000, waterLoss: 0.08, waterReserve: 1.3, wasteCapacity: 1.03, rooftopPv: 1.2 },
-  D07: { pop: 21000, waterLoss: 0.1, waterReserve: 1.45, wasteCapacity: 1.06, rooftopPv: 1.3 },
-  D08: { pop: 64000, waterLoss: 0.09, waterReserve: 0.95, wasteCapacity: 0.98, rooftopPv: 1.2 },
-  D09: { pop: 17000, waterLoss: 0.08, waterReserve: 0.97, wasteCapacity: 1.0, rooftopPv: 1.0 },
-  D10: { pop: 30000, waterLoss: 0.11, waterReserve: 1.25, wasteCapacity: 1.05, rooftopPv: 1.7 },
-  D11: { pop: 54000, waterLoss: 0.08, waterReserve: 0.98, wasteCapacity: 0.97, rooftopPv: 0.9 },
-  D12: { pop: 63000, waterLoss: 0.09, waterReserve: 0.96, wasteCapacity: 0.8, rooftopPv: 1.0 },
-  D13: { pop: 37000, waterLoss: 0.21, waterReserve: 0.85, wasteCapacity: 1.04, rooftopPv: 0.9 },
-  D14: { pop: 30000, waterLoss: 0.07, waterReserve: 1.02, wasteCapacity: 1.12, rooftopPv: 1.0 },
-  D15: { pop: 51000, waterLoss: 0.07, waterReserve: 0.96, wasteCapacity: 1.01, rooftopPv: 0.8 },
-  D16: { pop: 39000, waterLoss: 0.08, waterReserve: 0.97, wasteCapacity: 1.08, rooftopPv: 0.7 },
-  D17: { pop: 20000, waterLoss: 0.1, waterReserve: 1.1, wasteCapacity: 1.02, rooftopPv: 1.8 },
-  D18: { pop: 50000, waterLoss: 0.09, waterReserve: 1.05, wasteCapacity: 1.18, rooftopPv: 1.4 },
-};
-
-const profile = (id: string): SectorProfile =>
-  PROFILE[id] ?? { pop: 10000, waterLoss: 0.1, waterReserve: 1, wasteCapacity: 1, rooftopPv: 1 };
-
-/** Ile `secondary` potrzeba na jednostkę `primary`, by sektor był pokryty (woda: z doliczeniem strat sieci). */
-export function needFactor(metric: Metric, sectorId: string): number {
-  return metric === "woda" ? 1 / (1 - profile(sectorId).waterLoss) : 1;
-}
-
 export interface Reading {
   primary: number;
   secondary: number;
+  /** Ile `secondary` potrzeba, by pokryć `primary` (woda: z doliczeniem strat sieci). Brak = `primary`. */
+  need?: number;
 }
 
 const phaseOf = (key: string) => [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) / 997 * Math.PI * 2;
@@ -92,9 +51,10 @@ export function assetMeter(a: Asset, metric: Metric): Meter | undefined {
   return a.meters?.find((m) => m.metric === metric);
 }
 
-/** Odczyt sektora: odbiorcy rozproszeni (z liczby mieszkańców) + obiekty produkujące w sektorze. */
-export function sectorReading(sectorId: string, metric: Metric, assets: Asset[], t: number): Reading {
-  const p = profile(sectorId);
+/** Odczyt sektora: odbiorcy rozproszeni (z profilu dzielnicy) + obiekty produkujące w sektorze. */
+export function sectorReading(sector: Sector, metric: Metric, assets: Asset[], t: number): Reading {
+  const p = sector.profile;
+  const sectorId = sector.id;
   const k = `${sectorId}:${metric}`;
   const produced = (m: Metric) =>
     assets
@@ -105,23 +65,29 @@ export function sectorReading(sectorId: string, metric: Metric, assets: Asset[],
     case "energia": {
       const use = live(p.pop * 0.00052, `${k}:p`, t);
       const rooftop = p.pop * 0.00004 * p.rooftopPv;
-      return { primary: use, secondary: live(rooftop + produced("energia"), `${k}:s`, t, 0.08) };
+      return { primary: use, secondary: live(rooftop + produced("energia"), `${k}:s`, t, 0.08), need: use };
     }
     case "woda": {
       const use = live(p.pop * 0.0051, `${k}:p`, t);
-      return { primary: use, secondary: (use / (1 - p.waterLoss)) * p.waterReserve };
+      const need = use / (1 - p.waterLoss);
+      return { primary: use, secondary: need * p.waterReserve, need };
     }
     case "odpady": {
       const made = live(p.pop * 0.00094, `${k}:p`, t, 0.02);
-      return { primary: made, secondary: made * p.wasteCapacity };
+      return { primary: made, secondary: made * p.wasteCapacity, need: made };
     }
-    case "cieplo":
-      return { primary: live(p.pop * 0.0021, `${k}:p`, t), secondary: live(produced("cieplo"), `${k}:s`, t, 0.03) };
+    case "cieplo": {
+      const use = live(p.pop * 0.0021, `${k}:p`, t);
+      return { primary: use, secondary: live(produced("cieplo"), `${k}:s`, t, 0.03), need: use };
+    }
   }
 }
 
 export function sumReadings(rs: Reading[]): Reading {
-  return rs.reduce((s, r) => ({ primary: s.primary + r.primary, secondary: s.secondary + r.secondary }), { primary: 0, secondary: 0 });
+  return rs.reduce(
+    (s, r) => ({ primary: s.primary + r.primary, secondary: s.secondary + r.secondary, need: s.need! + (r.need ?? r.primary) }),
+    { primary: 0, secondary: 0, need: 0 },
+  );
 }
 
 export function fmt(v: number, metric: Metric): string {
@@ -149,7 +115,8 @@ export function insights(
   for (const s of sectors) {
     const { primary, secondary } = s.reading;
     if (metric === "woda") {
-      const loss = profile(s.id).waterLoss;
+      // Potrzeba = zużycie / (1 − straty), więc straty = 1 − zużycie / potrzeba.
+      const loss = 1 - primary / (s.reading.need ?? primary);
       if (loss > 0.15) {
         const r = linked(s.id, "woda");
         out.push({

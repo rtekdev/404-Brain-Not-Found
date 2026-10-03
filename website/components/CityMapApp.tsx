@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MlMap } from "maplibre-gl";
-import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
-import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon } from "geojson";
 import { Radio, Sparkles } from "lucide-react";
-import MapView, { boundsOf, type CityGeo } from "./map/MapView";
+import MapView, { boundsOf } from "./map/MapView";
 import MarkerOverlay from "./map/MarkerOverlay";
 import MapPopup from "./map/MapPopup";
 import TopBar, { LAYER_DEFS, type LayerId } from "./TopBar";
@@ -18,57 +16,43 @@ import FlowOverlay from "./map/FlowOverlay";
 import ReportDialog from "./ReportDialog";
 import CameraFeed from "./CameraFeed";
 import { Legend, ZoomControls } from "./Legend";
-import { ACCESS_POINTS, ASSETS, CAMERAS, CAMERA_EVENTS, INTAKE_SCENARIOS, buildReports, type IntakeScenario } from "@/lib/demo-data";
+import { CAMERA_EVENTS, INTAKE_SCENARIOS, localAlertReports, type IntakeScenario } from "@/lib/simulation";
+import type { CityData } from "@/lib/city-repo";
+import { sectorOf as sectorOfPoint } from "@/lib/rows";
+import { createReportAction, reportsSinceAction, simulateAlertAction, updateReportAction } from "@/app/centrum/actions";
+import AlertCenter from "./AlertCenter";
+import { pickAlert, responsePlan, type Plan, type Step } from "@/lib/response";
 import { classify } from "@/lib/classify";
 import { scoreReport, type PriorityResult } from "@/lib/priority";
 import { ACCESS_LABEL, ASSET_LABEL, CATEGORY_LABEL, unitById, unitForCategory } from "@/lib/meta";
 import { METRIC, assetMeter, fmt, meterAt, sectorReading, type Reading } from "@/lib/resources";
-import { applyTransfers, estimate, type Transfer } from "@/lib/transfer";
+import { applyTransfers, distanceKm, estimate, type Transfer } from "@/lib/transfer";
 import type { Draft } from "./TransferPlanner";
-import type { LngLat, Metric, Place, Report, Sector, Status } from "@/lib/types";
+import type { LngLat, Metric, Report, Status } from "@/lib/types";
 
 export type ScoredReport = Report & { priority: PriorityResult };
 export type Selection = { type: "report" | "camera" | "asset" | "access"; id: string };
 
-const CITY = { slug: "krakow", name: "Kraków" };
 const PANEL_W = 400;
-
-interface Loaded extends CityGeo {
-  sectorList: Sector[];
-  places: Place[];
-}
-
-async function loadCity(slug: string): Promise<Loaded> {
-  const get = (f: string) => fetch(`/data/${slug}/${f}.geojson`).then((r) => r.json());
-  const [boundary, sectors, places] = await Promise.all([get("boundary"), get("sectors"), get("places")]);
-  const sc = sectors as FeatureCollection<Polygon | MultiPolygon>;
-  return {
-    boundary,
-    sectors: sc,
-    sectorList: sc.features
-      .map((f) => ({
-        id: f.properties!.id,
-        name: f.properties!.name,
-        areaKm2: f.properties!.areaKm2,
-        anchor: f.properties!.anchor,
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
-    places: (places as FeatureCollection<Point>).features.map((f) => ({
-      name: f.properties!.name,
-      sector: f.properties!.sector,
-      position: f.geometry.coordinates as LngLat,
-    })),
-  };
-}
 
 function isDesktop() {
   return typeof window !== "undefined" && window.innerWidth >= 640;
 }
 
-export default function CityMapApp() {
-  const [geo, setGeo] = useState<Loaded | null>(null);
+export default function CityMapApp({ city }: { city: CityData }) {
+  // Dane miasta przychodzą z bazy (strona serwerowa /centrum).
+  const geo = useMemo(
+    () => ({
+      boundary: city.boundary,
+      sectors: { type: "FeatureCollection" as const, features: city.sectorFeatures },
+      sectorList: city.sectors,
+      places: city.places,
+    }),
+    [city],
+  );
+  const { cameras, assets, access } = city;
   const [map, setMap] = useState<MlMap | null>(null);
-  const [reports, setReports] = useState<Report[]>(() => buildReports());
+  const [reports, setReports] = useState<Report[]>(city.reports);
   const [now, setNow] = useState(() => Date.now());
   const [layers, setLayers] = useState<Record<LayerId, boolean>>(
     () => Object.fromEntries(LAYER_DEFS.map((l) => [l.id, true])) as Record<LayerId, boolean>,
@@ -82,6 +66,11 @@ export default function CityMapApp() {
   const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
   const [mode, setMode] = useState<Mode>("zgloszenia");
   const [intake, setIntake] = useState<IntakeScenario | null>(null);
+  // Powiadomienia o nowych zgłoszeniach z bazy (inne kanały, symulacja alarmu).
+  const [alertIds, setAlertIds] = useState<string[]>([]);
+  const [doneSteps, setDoneSteps] = useState<Set<string>>(() => new Set());
+  const knownIds = useRef(new Set(city.reports.map((r) => r.id)));
+  const lastSeen = useRef(Math.max(0, ...city.reports.map((r) => r.createdAt)));
   const [metric, setMetric] = useState<Metric>("energia");
   const [t, setT] = useState(() => Date.now());
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -95,32 +84,21 @@ export default function CityMapApp() {
   }, [mode]);
 
   useEffect(() => {
-    loadCity(CITY.slug).then(setGeo);
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
 
-  const sectorOf = useCallback(
-    (pos: LngLat): string | null => {
-      if (!geo) return null;
-      const pt: Feature<Point> = { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: pos } };
-      return geo.sectors.features.find((f) => booleanPointInPolygon(pt, f))?.properties?.id ?? null;
-    },
-    [geo],
-  );
+  const sectorOf = useCallback((pos: LngLat) => sectorOfPoint(pos, city.sectorFeatures), [city]);
 
   const scored = useMemo<ScoredReport[]>(
-    () => reports.map((r) => ({ ...r, sector: r.sector ?? sectorOf(r.position), priority: scoreReport(r, now) })),
-    [reports, now, sectorOf],
+    () => reports.map((r) => ({ ...r, priority: scoreReport(r, now) })),
+    [reports, now],
   );
-  const cameras = useMemo(() => CAMERAS.map((c) => ({ ...c, sector: sectorOf(c.position) })), [sectorOf]);
-  const assets = useMemo(() => ASSETS.map((a) => ({ ...a, sector: sectorOf(a.position) })), [sectorOf]);
-  const access = useMemo(() => ACCESS_POINTS.map((a) => ({ ...a, sector: sectorOf(a.position) })), [sectorOf]);
 
   const readingsAt = useCallback(
     (at: number, withTransfers = true): Record<string, Reading> => {
-      const list = geo?.sectorList ?? [];
-      const base = Object.fromEntries(list.map((s) => [s.id, sectorReading(s.id, metric, assets, at)]));
+      const list = geo.sectorList;
+      const base = Object.fromEntries(list.map((s) => [s.id, sectorReading(s, metric, assets, at)]));
       return withTransfers ? applyTransfers(base, transfers, metric, list) : base;
     },
     [geo, metric, assets, transfers],
@@ -139,9 +117,73 @@ export default function CityMapApp() {
 
   const flyTo = (pos: LngLat, zoom = 15) => map?.flyTo({ center: pos, zoom: Math.max(map.getZoom(), zoom), padding: padding(), duration: 900 });
 
+  /** Nowe zgłoszenia → stan + komunikat. */
+  const announce = useCallback((fresh: Report[]) => {
+    if (fresh.length === 0) return;
+    for (const r of fresh) {
+      knownIds.current.add(r.id);
+      lastSeen.current = Math.max(lastSeen.current, r.createdAt);
+    }
+    setReports((rs) => [...fresh, ...rs]);
+    setNow(Date.now());
+    setAlertIds((ids) => [...ids, ...fresh.map((r) => r.id)]);
+  }, []);
+
+  const poll = useCallback(async () => {
+    try {
+      announce((await reportsSinceAction(lastSeen.current)).filter((r) => !knownIds.current.has(r.id)));
+    } catch {
+      // Chwilowy brak serwera/bazy — spróbujemy przy następnym cyklu.
+    }
+  }, [announce]);
+
+  // Szczęśliwa ścieżka na prezentację: alarm z bazy, a gdy serwer lub baza zawiodą — z danych lokalnych.
+  const simulateAlarm = useCallback(async () => {
+    try {
+      // Serwer bez bazy potrafi wisieć — po 3 s przechodzimy na dane lokalne.
+      await Promise.race([simulateAlertAction(), new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 3000))]);
+      await poll();
+    } catch {
+      announce(localAlertReports(Date.now(), (pos) => sectorOfPoint(pos, city.sectorFeatures)));
+    }
+  }, [announce, poll, city]);
+
+  useEffect(() => {
+    const i = setInterval(poll, 4000);
+    const onAlarm = () => void simulateAlarm();
+    let t: ReturnType<typeof setTimeout> | undefined;
+    window.addEventListener("swimm:simulate-alarm", onAlarm);
+    // Przyjście z przycisku alarmu na innej stronie: /centrum?alarm=1.
+    if (new URLSearchParams(window.location.search).has("alarm")) {
+      window.history.replaceState(null, "", window.location.pathname);
+      t = setTimeout(() => void simulateAlarm(), 300);
+    }
+    return () => {
+      clearInterval(i);
+      clearTimeout(t);
+      window.removeEventListener("swimm:simulate-alarm", onAlarm);
+    };
+  }, [poll, simulateAlarm]);
+
+  const alert = useMemo(() => pickAlert(scored.filter((r) => alertIds.includes(r.id))), [scored, alertIds]);
+  const plans = useMemo(() => {
+    const out: Record<string, Plan> = {};
+    for (const r of alert?.all ?? [])
+      out[r.id] = responsePlan(r, {
+        sectorName: (id) => geo.sectorList.find((s) => s.id === id)?.name ?? "",
+        cameraName: (id) => cameras.find((c) => c.id === id)?.name ?? id,
+        nearbyOpen: scored.filter((x) => x.id !== r.id && x.sector === r.sector && x.status !== "zamkniete").length,
+        related: scored
+          .filter((x) => x.id !== r.id && x.status !== "zamkniete")
+          .map((x) => ({ id: x.id, title: x.title, category: x.category, distanceM: distanceKm(r.position, x.position) * 1000 }))
+          .filter((x) => x.distanceM <= 500),
+      });
+    return out;
+  }, [alert, scored, geo, cameras]);
+
   const selectSector = (id: string | null) => {
     setSelectedSector(id);
-    if (!map || !geo) return;
+    if (!map) return;
     const f = id ? geo.sectors.features.find((s) => s.properties?.id === id) : geo.boundary;
     if (f) map.fitBounds(boundsOf(f), { padding: padding(), duration: 900 });
   };
@@ -157,14 +199,37 @@ export default function CityMapApp() {
     if (pos) flyTo(pos, 14);
   };
 
-  const updateReport = (id: string, patch: { status?: Status; unitId?: string | null }) =>
-    setReports((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const dismissAlert = useCallback(() => setAlertIds([]), []);
 
-  const addReport = (r: Omit<Report, "id" | "createdAt" | "sector">) => {
-    const id = `Z-${1024 + reports.length}`;
-    setReports((rs) => [{ ...r, id, createdAt: Date.now(), sector: null }, ...rs]);
+  const runStep = (r: ScoredReport, s: Step) => {
+    setDoneSteps((d) => new Set(d).add(`${r.id}:${s.id}`));
+    if (s.action === "assign" && s.target) updateReport(r.id, { unitId: s.target, status: "przekazane" });
+    if (s.action === "camera" && s.target) select({ type: "camera", id: s.target });
+    if (s.action === "show") selectSector(s.target ?? null);
+    if (s.action === "notify") setToast({ id: r.id, text: `Powiadomiono: ${s.target} · ${r.id}` });
+  };
+
+  const updateReport = (id: string, patch: { status?: Status; unitId?: string | null }) => {
+    setReports((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    void updateReportAction(id, patch);
+  };
+
+  /** Zapis w bazie; identyfikator i dzielnicę nadaje serwer. */
+  const addReport = async (r: Omit<Report, "id" | "createdAt" | "sector" | "status" | "unitId" | "confirmations">) => {
+    const saved = await createReportAction({
+      title: r.title,
+      description: r.description,
+      category: r.category,
+      source: r.source,
+      position: r.position,
+      blocking: r.blocking,
+      confidence: r.confidence,
+      cameraId: r.cameraId,
+    });
+    knownIds.current.add(saved.id);
+    setReports((rs) => [saved, ...rs]);
     setNow(Date.now());
-    return id;
+    return saved.id;
   };
 
   const simulateIntake = (kind: SimKind) => {
@@ -174,7 +239,7 @@ export default function CityMapApp() {
     setIntake(INTAKE_SCENARIOS.find((s) => s.channel === kind) ?? null);
   };
 
-  const acceptIntake = (d: IntakeDraft) => {
+  const acceptIntake = async (d: IntakeDraft) => {
     if (!intake) return;
     const channel = intake.channel;
     setIntake(null);
@@ -184,15 +249,12 @@ export default function CityMapApp() {
       setPicking(true);
       return;
     }
-    const id = addReport({
+    const id = await addReport({
       title: d.title,
       description: d.description,
       category: d.category,
       source: channel,
-      status: "nowe",
       position: d.position,
-      unitId: null,
-      confirmations: 1,
       blocking: d.blocking,
       confidence: d.confidence,
     });
@@ -201,18 +263,15 @@ export default function CityMapApp() {
     flyTo(d.position, 14.5);
   };
 
-  const simulate = () => {
+  const simulate = async () => {
     const ev = CAMERA_EVENTS[simIndex % CAMERA_EVENTS.length];
     setSimIndex((i) => i + 1);
-    const id = addReport({
+    const id = await addReport({
       title: ev.title,
       description: ev.description,
       category: ev.category,
       source: "kamera",
-      status: "nowe",
       position: ev.position,
-      unitId: null,
-      confirmations: 1,
       blocking: ev.blocking ?? false,
       cameraId: ev.cameraId,
       confidence: ev.confidence ?? 0.85,
@@ -229,18 +288,15 @@ export default function CityMapApp() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const submitReport = (d: { title: string; description: string; blocking: boolean }) => {
+  const submitReport = async (d: { title: string; description: string; blocking: boolean }) => {
     if (!draft) return;
     const c = classify(d.description);
-    const id = addReport({
+    const id = await addReport({
       title: d.title,
       description: d.description,
       category: c.category,
       source: "aplikacja",
-      status: "nowe",
       position: draft,
-      unitId: null,
-      confirmations: 1,
       blocking: d.blocking,
       confidence: c.confidence,
     });
@@ -250,12 +306,6 @@ export default function CityMapApp() {
     setToast({ id, text: `Przyjęto zgłoszenie ${id} · ${CATEGORY_LABEL[c.category]}` });
     setSelection({ type: "report", id });
   };
-
-  if (!geo) {
-    return (
-      <div className="grid flex-1 place-items-center text-sm text-muted">Ładowanie mapy miasta…</div>
-    );
-  }
 
   const selCamera = selection?.type === "camera" ? cameras.find((c) => c.id === selection.id) : undefined;
   const selAsset = selection?.type === "asset" ? assets.find((a) => a.id === selection.id) : undefined;
@@ -394,7 +444,7 @@ export default function CityMapApp() {
       )}
 
       <TopBar
-        city={CITY.name}
+        city={city.name}
         layers={layers}
         onToggleLayer={(id) => setLayers((l) => ({ ...l, [id]: !l[id] }))}
         sectors={geo.sectorList}
@@ -492,6 +542,7 @@ export default function CityMapApp() {
         onClearSector={() => selectSector(null)}
         sectors={geo.sectorList}
         onSector={(id) => selectSector(id)}
+        cameras={cameras}
         onSelect={(id) => select(id ? { type: "report", id } : null)}
         onUpdate={updateReport}
         onNewReport={() => {
@@ -506,6 +557,20 @@ export default function CityMapApp() {
 
       <Legend mode={mode} metric={metric} />
       <ZoomControls onZoom={(d) => (d > 0 ? map?.zoomIn() : map?.zoomOut())} />
+
+      {alert && (
+        <AlertCenter
+          alert={alert}
+          plans={plans}
+          done={doneSteps}
+          onStep={runStep}
+          onShow={(r) => {
+            setMode("zgloszenia");
+            select({ type: "report", id: r.id });
+          }}
+          onDismiss={dismissAlert}
+        />
+      )}
 
       {toast && (
         <div

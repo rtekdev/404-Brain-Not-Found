@@ -4,11 +4,13 @@ Stan na: 2026-10-03
 
 ## W jednym akapicie
 
-Aplikacja webowa na Next.js 16 (App Router, React 19, TypeScript) w katalogu `website/`. Całość
-działa w przeglądarce: mapa MapLibre GL na podkładzie CARTO, dane miasta ze statycznych plików
-GeoJSON, zgłoszenia i pomiary zasobów generowane w kliencie (dane pokazowe, bez backendu). Uruchomienie:
-`npm run dev` albo `docker compose up --build --watch` w `website/`; produkcja to obraz Next.js
-`standalone` za nginx (`docker-compose.prod.yml`). Testy jednostkowe: `npm test` (Vitest).
+Aplikacja webowa na Next.js 16 (App Router, React 19, TypeScript) w katalogu `website/` z bazą
+PostgreSQL 17 (`pg`). Strona `/centrum` pobiera po stronie serwera wszystkie dane miasta z bazy
+(granica, dzielnice z profilami zasobów, osiedla, zgłoszenia, kamery, obiekty) i przekazuje je mapie
+MapLibre GL w przeglądarce; nowe zgłoszenia i zmiany statusu zapisują akcje serwera. Uruchomienie:
+`docker compose up -d --build` w `website/` — jeden `Dockerfile` (Next.js standalone) i jeden
+`docker-compose.yml` z usługami `web` i `db`. Testy: `npm test` (Vitest);
+z `DATABASE_URL` uruchamia się też test integracyjny na bazie.
 
 ## Mapa modułów
 
@@ -23,10 +25,13 @@ GeoJSON, zgłoszenia i pomiary zasobów generowane w kliencie (dane pokazowe, be
 | Zgłoszenia | `website/lib/priority.ts`, `classify.ts` | nadaje zgłoszeniom priorytet i kategorię regułami zastępującymi model |
 | Zasoby | `website/lib/resources.ts` | liczy odczyty miar (energia, woda, odpady, ciepło) per obiekt i sektor oraz wnioski |
 | Przyjęcie zgłoszeń | `website/lib/intake.ts`, `components/IntakeSimulator.tsx` | zamienia wiadomość (Telegram, SMS) albo transkrypcję rozmowy w szkic zgłoszenia: kategoria, tytuł, osiedle, dzielnica |
+| Alarmy i plan reagowania | `website/lib/response.ts`, `components/AlertCenter.tsx`, `components/AlarmButton.tsx` | wybiera najważniejsze nowe zgłoszenie do animacji, układa skrót, status i kroki reagowania (reguły w miejsce modelu) |
 | Ranking dzielnic | `website/lib/sectors.ts` | liczy otwarte i krytyczne zgłoszenia dzielnic i układa je od najpilniejszej |
 | Przekierowania | `website/lib/transfer.ts` | wycenia przeniesienie zasobu między sektorami i proponuje najlepsze trasy |
-| Dane pokazowe | `website/lib/demo-data.ts`, `website/public/data/krakow/` | dostarcza kamery, zgłoszenia, obiekty z licznikami i geometrię Krakowa |
-| Onboarding miasta | `website/scripts/build-city.mjs` | pobiera z OpenStreetMap granicę, dzielnice (jako sektory) i osiedla miasta |
+| Baza danych | `website/database/01-schema.sql`, `02-city.sql`, `03-seed.sql` | definiuje schemat i wczytuje miasto oraz dane startowe przy pierwszym starcie Postgresa |
+| Dostęp do danych | `website/lib/city-repo.ts`, `lib/rows.ts`, `app/centrum/actions.ts` | wczytuje dane miasta, zapisuje zgłoszenia (z dzielnicą wyliczoną z geometrii) i zmiany statusu |
+| Symulacje | `website/lib/simulation.ts` | trzyma skrypty pokazu: zdarzenia kamer, Telegram, telefon, dzielnica pokazowa |
+| Onboarding miasta | `website/scripts/build-city.mjs` | pobiera z OpenStreetMap granicę, dzielnice (jako sektory) i osiedla i zapisuje je jako `database/02-city.sql` |
 
 ## Przepływ — przekierowanie zasobu między sektorami
 
@@ -47,10 +52,13 @@ przekierowań nie zmieniała ich wyceny wzajemnie.
 
 ## Dane
 
-Wszystko żyje w pamięci przeglądarki i znika po odświeżeniu. Encje: `Report` (zgłoszenie),
-`Camera`, `Asset` (obiekt z opcjonalnymi licznikami `meters`), `AccessPoint`, `Sector`
-(z GeoJSON), `Transfer` (przekierowanie). Odczyty sektorów wynikają z profilu sektora (liczba
-mieszkańców, straty, rezerwy) i obiektów produkujących w jego granicach.
+PostgreSQL, tabele: `city` (granica jako GeoJSON w JSONB), `sectors` (dzielnice: geometria JSONB +
+profil zasobów: mieszkańcy, straty wody, rezerwa, zdolność odbioru odpadów, PV), `places` (osiedla),
+`reports`, `cameras` (`webcam_id` → podgląd WebCamera.pl), `assets` (liczniki w `meters` JSONB),
+`access_points`. Każdy wiersz z położeniem ma kolumnę `sector` (klucz obcy do `sectors`), wyliczaną
+przy zapisie z geometrii (turf, bez PostGIS). Identyfikatory zgłoszeń `Z-<nr>` z sekwencji
+`report_id_seq`. W pamięci przeglądarki zostają tylko przekierowania (`Transfer`) i odczyty „na żywo"
+liczone z profili dzielnic. Odtworzenie bazy od zera: `docker compose down -v && docker compose up`.
 
 ## Integracje zewnętrzne
 
@@ -68,7 +76,9 @@ mieszkańców, straty, rezerwy) i obiektów produkujących w jego granicach.
 
 ## Czego tu świadomie nie ma
 
-- **Backendu i bazy.** Etap 1 to demo w przeglądarce; zapis zgłoszeń na serwerze jest w planie (etap 2).
+- **PostGIS.** Przynależność do dzielnicy liczy aplikacja (turf) — 18 poligonów nie uzasadnia rozszerzenia bazy.
+- **Jednostek w bazie.** Jednostki miejskie (`UNITS`), kategorie i źródła to konfiguracja w kodzie (`lib/meta.ts`); w bazie pilnują ich ograniczenia CHECK.
+- **Zapisu przekierowań.** Przekierowania zasobów żyją w sesji dyspozytora i znikają po odświeżeniu.
 - **Prawdziwych liczników.** Pomiary zasobów są pokazowe i deterministyczne w czasie (`live`).
 - **Modelu językowego.** Priorytet, klasyfikacja i wnioski to reguły — podmiana w etapie 2.
 - **Testów interfejsu.** Testy jednostkowe obejmują logikę w `lib/`; komponenty sprawdzane ręcznie w przeglądarce.
