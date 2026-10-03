@@ -1,7 +1,6 @@
 "use client"
 
 import { Report } from "@/lib/types";
-import { navigate } from "next/dist/client/components/segment-cache/navigation";
 import Link from "next/link";
 
 interface ReportsProps { 

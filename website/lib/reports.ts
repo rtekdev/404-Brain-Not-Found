@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import type { Category, Report, Source, Status } from "@/lib/types";
+import type { Camera, Category, Report, Source, Status } from "@/lib/types";
 
 export async function getReports(): Promise<Report[]> {
   const { rows } = await db.query<Report>(
@@ -9,16 +9,21 @@ export async function getReports(): Promise<Report[]> {
   return rows;
 }
 
-export async function getReportById(id: number): Promise<Report | null> {
+export async function getReportById(id: string ): Promise<Report | null> {
   const { rows } = await db.query<Report>(
     "SELECT * FROM reports WHERE id = $1",
     [id]
   );
-  return rows[0] ?? null;
+
+  let result = rows[0] ?? null;
+  if (!result) return null;
+
+  result["position"] = [result.longitude, result.latitude];
+  return result;
 }
 
-export async function getCameras(): Promise<{ id: string; name: string }[]> {
-  const { rows } = await db.query("SELECT id, name FROM cameras ORDER BY id");
+export async function getCameras(): Promise<Camera[]> {
+  const { rows } = await db.query("SELECT * FROM cameras ORDER BY id");
   return rows;
 }
 
@@ -28,8 +33,8 @@ export interface NewReport {
   category: Category;
   source: Source;
   status: Status;
-  longitude: number;
-  latitude: number;
+  longitude: number | null;
+  latitude: number | null;
   unitId: string | null;
   confirmations: number;
   blocking: boolean;

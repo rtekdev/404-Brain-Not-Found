@@ -4,6 +4,7 @@ import Reports from "./reports";
 import { getReports } from "@/lib/reports";
 import { connection } from "next/server";
 import { Link } from "lucide-react";
+import LiveReports from "./LiveResponseListener";
 
 export default async function Page() {
   await connection();
@@ -23,11 +24,11 @@ export default async function Page() {
         href="/reports/add"
         className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-bold text-black shadow-[0_0_14px_rgba(34,211,238,0.8)] transition hover:bg-cyan-300 hover:shadow-[0_0_24px_rgba(34,211,238,1)] active:scale-95"
       >
-        <span className="text-lg leading-none">+</span> Add Report
+          <span >+ Add Report</span>
       </Link>
     </div>
-
     <Suspense fallback={<Loading />}>
+      <LiveReports />
       <Reports reports={reports} />
     </Suspense>
   </div>

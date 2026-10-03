@@ -54,8 +54,8 @@ CREATE TABLE reports (
                    'kamera', 'telefon', 'sms', 'aplikacja', 'messenger', 'telegram')),
   status         TEXT NOT NULL DEFAULT 'nowe' CHECK (status IN (
                    'nowe', 'przekazane', 'w_realizacji', 'zamkniete')),
-  longitude      DOUBLE PRECISION NOT NULL,
-  latitude       DOUBLE PRECISION NOT NULL,
+  longitude      DOUBLE PRECISION,
+  latitude       DOUBLE PRECISION,
   sector         VARCHAR(10) REFERENCES sectors(id) ON DELETE SET NULL,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   unit_id        TEXT,
@@ -92,3 +92,15 @@ CREATE TABLE access_points (
 CREATE INDEX reports_created_at_idx ON reports (created_at DESC);
 CREATE INDEX reports_status_idx ON reports (status);
 CREATE INDEX reports_sector_idx ON reports (sector);
+
+-- Trigger for notifying frontend on new report insert to db
+CREATE OR REPLACE FUNCTION notify_new_report() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('new_report', NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER reports_notify
+AFTER INSERT ON reports
+FOR EACH ROW EXECUTE FUNCTION notify_new_report();

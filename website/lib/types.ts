@@ -1,4 +1,4 @@
-export type LngLat = [number, number];
+export type LngLat = [number | null, number | null];
 
 export type Category =
   | "drogi"
@@ -40,30 +40,30 @@ export interface Unit {
 }
 
 export interface Report {
-  id: string;
+  id: string;                       // "Z-1048"
   title: string;
   description: string;
   category: Category;
   source: Source;
   status: Status;
-  position: LngLat;
-  sector: string | null;
-  createdAt: number;
+  latitude: number;
+  longitude: number;
+  position: LngLat;       // [lng, lat], built in SQL
+  sector: string | null;            // sectors.id, e.g. "D13"
+  createdAt: number;                // ms timestamp
   unitId: string | null;
-  /** Ile osób / zgłoszeń dotyczy tego samego problemu. */
   confirmations: number;
-  /** Czy blokuje ruch, przejście lub dostęp do usługi. */
   blocking: boolean;
-  cameraId?: string;
-  /** Pewność klasyfikacji 0–1 (z orkiestratora kamer lub modelu językowego). */
-  confidence: number;
-  /** Kto przejął zgłoszenie poza urzędem, np. „112 — CPR Kraków"; null — nikt. */
-  handledBy?: string | null;
+  cameraId: string | null;
+  confidence: number;               // 0..1
+  handledBy: string | null;
 }
 
 export interface Camera {
   id: string;
   name: string;
+  latitude: null;
+  longitude: null;
   position: LngLat;
   sector: string | null;
   online: boolean;

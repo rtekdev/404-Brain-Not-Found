@@ -3,16 +3,23 @@
 # Baza wczytuje database/*.sql przy pierwszym starcie; od zera: docker compose down -v
 services:
   web:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
     environment:
       - NEXT_TELEMETRY_DISABLED=1
       - DATABASE_URL=postgres://postgres:pass@db:5432/reports
+      - WATCHPACK_POLLING=true
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
 
   db:
     image: postgres:17
