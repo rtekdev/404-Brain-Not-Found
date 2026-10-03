@@ -14,12 +14,9 @@ export default async function Page({
   return (
     <div>
       <p>ID: {reportData.id}</p>
-      <p>Title: {reportData.name}</p>
+      <p>Title: {reportData.title}</p>
       <p>Location of distress: {reportData.position}</p>
-      <p>Priority: {reportData.priority}</p>
-      <p>metadata: {Object.keys(reportData.metadata).map((key, i) => {
-        return (<p>{key}: {reportData.metadata[`${key}`]}</p>)
-      })}</p>
+      <p>Priority: {reportData.status}</p>
     </div>
   );
 };

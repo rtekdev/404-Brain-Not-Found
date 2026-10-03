@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "./db";
-import type { Report } from "../common/types/reports";
+import type { Report } from "@/lib/types";
 
 export async function getReports(): Promise<Report[]> {
   const { rows } = await db.query<Report>(
