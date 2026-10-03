@@ -28,25 +28,34 @@ Autor: Claude (Opus) + rtek
   9 sektorów S01–S09, 109 osiedli, kamery KC, zgłoszenia Z-2xxx, obiekty KA, dostępność KP).
   Przełącznik w górnym pasku (`/centrum?miasto=`), a po oddaleniu mapy (zoom < 9,5) drugie miasto
   podświetla się i przełącza po kliknięciu. Obiekty należą do miasta przez sektor; centrala per miasto.
-- Usunięty przycisk „Symuluj" z panelu zgłoszeń (wraz z pokazami Telegrama/telefonu/kamery w UI);
-  zostaje „Symuluj alarm" w górnym pasku — z Kielc przełącza na Kraków.
+- Wycięte pokazy kanałów (decyzja człowieka): przycisk „Symuluj" z panelu zgłoszeń, okno Telegrama
+  i telefonu (`IntakeSimulator`, `lib/intake.ts` z `parseMessage`), zdarzenia kamer i ich testy;
+  `SCENARIUSZ_DEMO.md` skrócony do 9 kroków (bez kroków Telegram/telefon). Zostaje „Symuluj alarm"
+  w górnym pasku — z Kielc przełącza na Kraków. `parseMessage` do odzyskania z git przy prawdziwym kanale.
 - `/reports`, `/reports/[id]`, `/reports/add` w wyglądzie panelu (tokeny, ikony, kolory priorytetu).
   Naprawione: lista dostawała surowe wiersze bazy (brak pozycji i czasu), a zgłoszenie z formularza nie
   miało sektora, więc nie trafiało na mapę.
+- Strona główna wyśrodkowana; czat zwinięty do jednej linii „Opisz swój problem, pomogę", po kliknięciu
+  rozwija się płynnie (wysokość okna dopasowana, pole wpisywania zostaje na ekranie).
+- Responsywność na telefonie (360 px): górny pasek bez przepełnienia („Symuluj alarm" jako ikona),
+  numer w jednej linii, SMS / Telegram / 112 w jednym rzędzie, zwinięty czat bez przycisku wysyłki.
+- Alarm na pokaz zmieniony: jedno zgłoszenie z nowej kamery K18 (park przy Tauron Arenie) — „Człowiek na
+  ławce — prawdopodobne zasłabnięcie", „112 — pogotowie powiadomione" (bez drugiego zgłoszenia z dziurą).
+  „Zasłab…" liczy się jako zagrożenie zdrowia. W komunikacie miniatura nagrania (`ClipPreview`): klik
+  powiększa, pod nagraniem 6 klatek wyciętych w przeglądarce; plik `public/clips/<kamera>.mp4`.
 - Numer kontaktowy ze spacjami; wyjaśnione, że produkcyjny Docker wymaga przebudowy po zmianie kodu.
 
 **Zweryfikowane — jak dokładnie:**
 - TDD: testy wielu miast (lista miast, izolacja danych, zarysy innych miast, centrala Kielc) —
-  czerwone, potem zielone; `npm test` z bazą 78/78; `tsc` i `eslint` czyste.
+  czerwone, potem zielone; `npm test` z bazą 67/67 (po wycięciu testów pokazów); `tsc` i `eslint` czyste.
 - Przeglądarka (obraz produkcyjny): przełączanie Kraków ↔ Kielce z listy i z mapy po oddaleniu;
   widok zasobów Kielc; `/reports` z filtrem miast, szczegóły Z-2001, formularz w kolorach panelu.
 
 **Świadomie odłożone:**
-- `docs/SCENARIUSZ_DEMO.md` kroki 3 i 5 („Symuluj → Telegram / Telefon") są nieaktualne — przycisku
-  już nie ma; do decyzji człowieka, czym je zastąpić.
-- `components/IntakeSimulator.tsx` i scenariusze w `lib/simulation.ts` nie są już używane w UI
-  (zostają, bo pokrywają je testy) — do decyzji: usunąć albo przywrócić pokazy w innym miejscu.
 - Przy wejściu bezpośrednio przez adres mapa startuje mocno oddalona (było wcześniej).
+- Brak pliku `public/clips/K18.mp4` — miniatura i klatki pokazują puste miejsca; wycinanie klatek
+  z prawdziwego nagrania niesprawdzone (brak ffmpeg do wygenerowania testowego klipu).
+- Kamera K18 dopisana do `03-seed.sql` i ręcznie do lokalnej bazy; inne bazy — `docker compose down -v`.
 
 ### 2026-10-03 — Alarm na prezentację: szczęśliwa ścieżka przy Tauron Arenie
 

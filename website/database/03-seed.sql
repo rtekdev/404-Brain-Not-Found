@@ -39,7 +39,8 @@ INSERT INTO cameras (id, name, longitude, latitude, sector, online, webcam_id) V
   ('K09', 'Kurdwanów · Wielicka', 19.97, 50.013, 'D11', true, NULL),
   ('K10', 'Ruczaj · Kobierzyńska', 19.915, 50.026, 'D08', true, NULL),
   ('K11', 'Bieżanów · Teligi', 20.02, 50.018, 'D12', false, NULL),
-  ('K12', 'Mistrzejowice · Kocmyrzowska', 20.008, 50.096, 'D15', true, NULL);
+  ('K12', 'Mistrzejowice · Kocmyrzowska', 20.008, 50.096, 'D15', true, NULL),
+  ('K18', 'Park przy Tauron Arenie', 19.9941, 50.0683, 'D14', true, NULL);
 
 -- ───────────── zgłoszenia (po 2 na dzielnicę, D13 — 4) ─────────────
 INSERT INTO reports

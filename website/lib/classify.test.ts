@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { classify } from "./classify";
-import { INTAKE_SCENARIOS } from "./simulation";
 
 describe("classify", () => {
   it("asfalt to miejsce, nie problem — woda spod asfaltu to awaria wodna", () => {
@@ -14,9 +13,5 @@ describe("classify", () => {
 
   it("rozpoznaje blokadę ruchu", () => {
     expect(classify("Drzewo leży na jezdni").blocking).toBe(true);
-  });
-
-  it("oba scenariusze prezentacji (Telegram, telefon) to awaria wodna", () => {
-    for (const s of INTAKE_SCENARIOS) expect(classify(s.text).category, s.channel).toBe("woda");
   });
 });

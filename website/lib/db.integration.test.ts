@@ -2,8 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Pool } from "pg";
 import { hubFor, sectorReading } from "./resources";
 import { suggest } from "./transfer";
-import { parseMessage } from "./intake";
-import { ALERT_SCENARIO, CAMERA_EVENTS, INTAKE_SCENARIOS, SHOWCASE_SECTOR, cameraEventsFor } from "./simulation";
+import { ALERT_SCENARIO, SHOWCASE_SECTOR } from "./simulation";
 import { listCities, loadCity, otherCityOutlines, type CityData } from "./city-repo";
 import { sectorOf } from "./rows";
 
@@ -67,24 +66,11 @@ describe.skipIf(!url)("baza danych — Kraków", () => {
     }
   });
 
-  it("scenariusze Telegrama i telefonu kończą się w dzielnicy pokazowej", () => {
-    for (const s of INTAKE_SCENARIOS) {
-      const d = parseMessage(s.text, { places: city.places, location: s.location });
-      expect(d.position, s.channel).not.toBeNull();
-      expect(sectorOf(d.position!, city.sectorFeatures), s.channel).toBe(SHOWCASE_SECTOR);
+  it("scenariusz alarmu leży w Czyżynach (D14), przy Tauron Arenie, z istniejącą kamerą w tej dzielnicy", () => {
+    for (const s of ALERT_SCENARIO) {
+      expect(sectorOf(s.position, city.sectorFeatures), s.title).toBe("D14");
+      expect(city.cameras.find((c) => c.id === s.cameraId)?.sector, s.cameraId).toBe("D14");
     }
-  });
-
-  it("symulacje kamer wskazują istniejące kamery i leżą w mieście", () => {
-    const ids = new Set(city.cameras.map((c) => c.id));
-    for (const e of CAMERA_EVENTS) {
-      expect(ids.has(e.cameraId!), e.cameraId).toBe(true);
-      expect(sectorOf(e.position, city.sectorFeatures), e.title).not.toBeNull();
-    }
-  });
-
-  it("scenariusz alarmu leży w Czyżynach (D14), przy Tauron Arenie", () => {
-    for (const s of ALERT_SCENARIO) expect(sectorOf(s.position, city.sectorFeatures), s.title).toBe("D14");
   });
 
   it("kolizja na rondzie Matecznego jest przejęta przez 112", () => {
@@ -146,14 +132,7 @@ describe.skipIf(!url)("baza danych — wiele miast", () => {
     }
   });
 
-  it("centrala i symulacje kamer Kielc leżą w Kielcach", () => {
+  it("centrala Kielc leży w Kielcach", () => {
     expect(sectorOf(hubFor("kielce").position, kielce.sectorFeatures)).not.toBeNull();
-    const ids = new Set(kielce.cameras.map((c) => c.id));
-    const events = cameraEventsFor("kielce");
-    expect(events.length).toBeGreaterThan(0);
-    for (const e of events) {
-      expect(ids.has(e.cameraId), e.cameraId).toBe(true);
-      expect(sectorOf(e.position, kielce.sectorFeatures), e.title).not.toBeNull();
-    }
   });
 });
