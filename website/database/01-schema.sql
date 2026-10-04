@@ -104,3 +104,5 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER reports_notify
 AFTER INSERT ON reports
 FOR EACH ROW EXECUTE FUNCTION notify_new_report();
+
+ALTER TABLE reports ENABLE ALWAYS TRIGGER reports_notify;
