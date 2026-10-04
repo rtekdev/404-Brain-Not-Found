@@ -6,7 +6,7 @@
 
 Projekt zespołu **404 Brain Not Found** na HackYeah 2026 (zadanie SMART CITY).
 
-Mamy własny serwer: https://hackyear.szubzdadev.pl/centrum
+Mamy własny serwer: https://swim.szubzdadev.pl/centrum
 
 ## O co chodzi
 
@@ -28,7 +28,7 @@ Potrzebny jest tylko [Docker](https://www.docker.com/products/docker-desktop/).
 ```bash
 git clone https://github.com/rtekdev/404-Brain-Not-Found.git
 cd 404-Brain-Not-Found/website
-docker compose up -d --build
+docker compose up --build
 ```
 
 Potem otwórz w przeglądarce:
@@ -36,7 +36,7 @@ Potem otwórz w przeglądarce:
 - **http://localhost:3000** - strona dla mieszkańców,
 - **http://localhost:3000/centrum** - mapa dla urzędu (tu jest całe demo).
 
-Zatrzymanie: `docker compose down`. Powrót do danych startowych: `docker compose down -v`, a potem znowu `docker compose up -d --build`.
+Zatrzymanie: `docker compose down`. Powrót do danych startowych: `docker compose down -v`, a potem znowu `docker compose up --build`.
 
 Czat AI na stronie głównej odpowiada dopiero po wpisaniu klucza `ANTHROPIC_API_KEY` do pliku `website/.env`. Reszta aplikacji działa bez niego.
 
@@ -44,6 +44,7 @@ Czat AI na stronie głównej odpowiada dopiero po wpisaniu klucza `ANTHROPIC_API
 
 - [Scenariusz demo](docs/SCENARIUSZ_DEMO.md) - co kliknąć na prezentacji, krok po kroku.
 - [Architektura](docs/ARCHITEKTURA.md) - jak to jest zbudowane.
-- Uruchomienie bez Dockera (tryb deweloperski): w `website/` wpisz `npm install`, a potem `DATABASE_URL=postgres://postgres:pass@localhost:5432/reports npm run dev`. Baza nadal musi działać w Dockerze: `docker compose up -d db`. Testy uruchamia `npm test`.
 
-Stos: Next.js 16, PostgreSQL 17, MapLibre GL, OpenStreetMap.
+Stos: Next.js 16, PostgreSQL 17, MapLibre GL, OpenStreetMap oraz zewnętrznie podpięte ElevenLabs i n8n.
+
+ElevenLabs i n8n nie są wymagane aby aplikacja działała
