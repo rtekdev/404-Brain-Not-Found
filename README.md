@@ -1,6 +1,6 @@
-# SWIMM — System Wspierania i Monitorowania Miasta
+# SWIMM - System Wspierania i Monitorowania Miasta
 
-![SWIMM — jedna mapa miasta, każde zgłoszenie, najpilniejsze na wierzchu](docs/img/swimm.png)
+![SWIMM - jedna mapa miasta, każde zgłoszenie, najpilniejsze na wierzchu](docs/img/swimm.png)
 
 **Jedna mapa miasta. Każde zgłoszenie. Najpilniejsze na wierzchu.**
 
@@ -31,8 +31,8 @@ docker compose up -d --build
 
 Potem otwórz w przeglądarce:
 
-- **http://localhost:3000** — strona dla mieszkańców,
-- **http://localhost:3000/centrum** — mapa dla urzędu (tu jest całe demo).
+- **http://localhost:3000** - strona dla mieszkańców,
+- **http://localhost:3000/centrum** - mapa dla urzędu (tu jest całe demo).
 
 Zatrzymanie: `docker compose down`. Powrót do danych startowych: `docker compose down -v`, a potem znowu `docker compose up -d --build`.
 
@@ -40,8 +40,8 @@ Czat AI na stronie głównej odpowiada dopiero po wpisaniu klucza `ANTHROPIC_API
 
 ## Więcej
 
-- [Scenariusz demo](docs/SCENARIUSZ_DEMO.md) — co kliknąć na prezentacji, krok po kroku.
-- [Architektura](docs/ARCHITEKTURA.md) — jak to jest zbudowane.
+- [Scenariusz demo](docs/SCENARIUSZ_DEMO.md) - co kliknąć na prezentacji, krok po kroku.
+- [Architektura](docs/ARCHITEKTURA.md) - jak to jest zbudowane.
 - Uruchomienie bez Dockera (tryb deweloperski): w `website/` wpisz `npm install`, a potem `DATABASE_URL=postgres://postgres:pass@localhost:5432/reports npm run dev`. Baza nadal musi działać w Dockerze: `docker compose up -d db`. Testy uruchamia `npm test`.
 
 Stos: Next.js 16, PostgreSQL 17, MapLibre GL, OpenStreetMap.
