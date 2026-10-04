@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import LiveReports from "./LiveResponseListener";
 import { Plus } from "lucide-react";
 import { getReports } from "@/lib/reports";
 import Reports from "./reports";
@@ -34,7 +33,6 @@ export default async function Page() {
         </div>
 
         <Suspense fallback={<Loading />}>
-          <LiveReports />
           <Reports reports={reports} />
         </Suspense>
       </div>
