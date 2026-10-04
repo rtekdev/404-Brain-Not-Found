@@ -56,3 +56,4 @@ ElevenLabs i n8n nie są wymagane aby aplikacja działała
 - Plugin: autorski do efektywnego zarządzania projektem
 - Dane statystyczne: GUS, Społeczeństwo informacyjne w Polsce, MSWiA, ZDMK Kraków
 - API: OpenStreetMap, WebCamera.pl
+- CapCut ai-creator studio
