@@ -6,6 +6,8 @@
 
 Projekt zespołu **404 Brain Not Found** na HackYeah 2026 (zadanie SMART CITY).
 
+Mamy własny serwer: https://hackyear.szubzdadev.pl/centrum
+
 ## O co chodzi
 
 Mieszkańcy zgłaszają problemy na wiele sposobów: telefonem, SMS-em, w czacie albo formularzem. Do tego dochodzą kamery miejskie. W urzędzie te zgłoszenia trafiają w różne miejsca, nie ma ich na wspólnej mapie i nikt nie układa ich od najpilniejszego.
