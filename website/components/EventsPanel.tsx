@@ -3,7 +3,12 @@
 import { useState } from "react";
 import {
   ArrowLeft,
+  Check,
   ChevronDown,
+  Forward,
+  Navigation,
+  Play,
+  RotateCcw,
   ChevronRight,
   Clock,
   Plus,
@@ -24,6 +29,7 @@ import {
 } from "@/lib/meta";
 import type { Camera, Sector, Status } from "@/lib/types";
 import { rankSectors, type SectorFilter } from "@/lib/sectors";
+import { EXTERNAL_SERVICES, dispatchFor } from "@/lib/dispatch";
 import { CATEGORY_ICON, SOURCE_ICON } from "./icons";
 import CameraFeed from "./CameraFeed";
 import type { ScoredReport } from "./CityMapApp";
@@ -45,6 +51,80 @@ interface Props {
   ) => void;
   onNewReport: () => void;
   now: number;
+  /** Podgląd jako jednostka (id z UNITS); null — dyspozytor całego miasta. */
+  unitView: string | null;
+  onUnitView: (id: string | null) => void;
+  /** Przekazanie dalej: `unit:<id>` albo nazwa służby zewnętrznej. */
+  onForward: (id: string, target: string) => void;
+}
+
+function UnitActions({ r, unitId, onUpdate, onForward }: { r: ScoredReport; unitId: string; onUpdate: Props["onUpdate"]; onForward: Props["onForward"] }) {
+  const [target, setTarget] = useState("");
+  const primary =
+    r.status === "nowe" || r.status === "przekazane"
+      ? { label: "Przyjmij do realizacji", icon: Play, status: "w_realizacji" as Status }
+      : r.status === "w_realizacji"
+        ? { label: "Zakończ zgłoszenie", icon: Check, status: "zamkniete" as Status }
+        : { label: "Wznów realizację", icon: RotateCcw, status: "w_realizacji" as Status };
+  const PrimaryIcon = primary.icon;
+  return (
+    <section className="space-y-3">
+      <div className="text-xs text-subtle">
+        Status: <span className="font-medium text-foreground">{STATUS_LABEL[r.status]}</span>
+        {r.handledBy && <> · przejęte przez {r.handledBy}</>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onUpdate(r.id, { status: primary.status })}
+        className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-accent text-sm font-medium text-white hover:bg-accent/85"
+      >
+        <PrimaryIcon size={16} aria-hidden /> {primary.label}
+      </button>
+      <div>
+        <label className="mb-1.5 block text-xs text-subtle" htmlFor="forward">
+          Przekaż dalej
+        </label>
+        <div className="flex gap-1.5">
+          <div className="relative flex-1">
+            <select
+              id="forward"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              className="h-10 w-full appearance-none rounded-lg border border-line bg-black/20 px-3 text-sm focus:border-accent focus:outline-none"
+            >
+              <option value="">— wybierz —</option>
+              <optgroup label="Jednostki miejskie">
+                {UNITS.filter((u) => u.id !== unitId).map((u) => (
+                  <option key={u.id} value={`unit:${u.id}`}>
+                    {u.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Służby">
+                {EXTERNAL_SERVICES.map((x) => (
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+          </div>
+          <button
+            type="button"
+            disabled={!target}
+            onClick={() => {
+              onForward(r.id, target);
+              setTarget("");
+            }}
+            className="flex h-10 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-panel-hover disabled:opacity-40"
+          >
+            <Forward size={15} aria-hidden /> Przekaż
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function PriorityBadge({ r }: { r: ScoredReport }) {
@@ -66,13 +146,18 @@ function Detail({
   onUpdate,
   now,
   cameras,
+  unitView,
+  onForward,
 }: {
   r: ScoredReport;
   onBack: () => void;
   onUpdate: Props["onUpdate"];
   now: number;
   cameras: Camera[];
+  unitView: string | null;
+  onForward: Props["onForward"];
 }) {
+  const dispatch = dispatchFor(r);
   const SourceIcon = SOURCE_ICON[r.source];
   const suggested = unitForCategory(r.category);
   const unit = unitById(r.unitId);
@@ -135,6 +220,15 @@ function Detail({
           </div>
         </dl>
 
+        {dispatch && (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm">
+            <Navigation size={15} className="text-rose-300" aria-hidden />
+            <span>
+              W drodze: <strong>{dispatch.label}</strong>
+            </span>
+          </div>
+        )}
+
         <section className="rounded-xl border border-accent/30 bg-accent/10 p-3">
           <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-accent-soft">
             <Sparkles size={13} aria-hidden /> Ocena AI
@@ -160,6 +254,10 @@ function Detail({
           </ul>
         </section>
 
+        {unitView ? (
+          <UnitActions r={r} unitId={unitView} onUpdate={onUpdate} onForward={onForward} />
+        ) : (
+        <>
         <section className="space-y-2">
           <label className="block text-xs text-subtle" htmlFor="unit">
             Jednostka odpowiedzialna
@@ -225,6 +323,8 @@ function Detail({
             ))}
           </div>
         </section>
+        </>
+        )}
       </div>
     </div>
   );
@@ -233,7 +333,8 @@ function Detail({
 export default function EventsPanel(p: Props) {
   const [filter, setFilter] = useState<Filter>("otwarte");
   // Widok całego miasta: zamiast listy zgłoszeń — ranking dzielnic.
-  const cityView = !p.sectorFilter;
+  const cityView = !p.sectorFilter && !p.unitView;
+  const viewUnit = unitById(p.unitView);
   const rows = cityView ? rankSectors(p.reports, p.sectors, filter) : [];
   const selected = p.reports.find((r) => r.id === p.selectedId);
 
@@ -261,12 +362,33 @@ export default function EventsPanel(p: Props) {
           cameras={p.cameras}
           onBack={() => p.onSelect(null)}
           onUpdate={p.onUpdate}
+          unitView={p.unitView}
+          onForward={p.onForward}
         />
       ) : (
         <>
-          <div className="border-b border-line px-4 pb-3 pt-3.5">
+          <div className="border-b border-line px-4 pb-3 pt-3">
+            <div className="relative mb-3">
+              <label htmlFor="unit-view" className="sr-only">
+                Podgląd jako
+              </label>
+              <select
+                id="unit-view"
+                value={p.unitView ?? ""}
+                onChange={(e) => p.onUnitView(e.target.value || null)}
+                className="h-9 w-full appearance-none rounded-lg border border-line bg-black/20 pl-3 pr-8 text-sm focus:border-accent focus:outline-none"
+              >
+                <option value="">Widok: dyspozytor miasta</option>
+                {UNITS.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    Widok jednostki: {u.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+            </div>
             <div className="flex items-center gap-2">
-              <h2 className="font-semibold">Najważniejsze teraz</h2>
+              <h2 className="font-semibold">{viewUnit ? `Zadania: ${viewUnit.short}` : "Najważniejsze teraz"}</h2>
               <span className="flex items-center gap-1 rounded-md bg-accent/15 px-1.5 py-0.5 text-[11px] font-medium text-accent-soft">
                 <Sparkles size={11} aria-hidden /> priorytet AI
               </span>

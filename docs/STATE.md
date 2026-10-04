@@ -14,6 +14,8 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 
 - Strona główna dla mieszkańców: pełna nazwa SWIMM, numer telefonu (kliknięcie od razu dzwoni), SMS, Telegram, 112 i czat z asystentem AI — wszystko wyśrodkowane, czat zwinięty do jednej linii „Opisz swój problem, pomogę" i rozwija się po kliknięciu. Numery są pokazowe. Czat odpowiada dopiero po ustawieniu `ANTHROPIC_API_KEY` w `website/.env`; bez klucza mówi, że jest niedostępny, i podaje telefon.
 - Panel urzędu (mapa, zgłoszenia, zasoby) jest pod adresem `/centrum`.
+- Widok jednostki: w panelu zgłoszeń przełącznik „dyspozytor miasta / jednostka". Jednostka widzi tylko swoje zgłoszenia, przyjmuje je do realizacji, zamyka i przekazuje dalej (innej jednostce albo Policji, Pogotowiu, Straży).
+- Po wejściu w zgłoszenie krytyczne, w realizacji albo przejęte przez służby na mapie jedzie pojazd (karetka, policja, straż, ekipa jednostki) ulicami do celu, z czasem dojazdu. Tylko pokaz — nic nie zapisuje się w bazie.
 
 - Dyspozytor widzi Kraków podzielony na 18 dzielnic (sektory D01–D18), z granicami pobranymi automatycznie z otwartych map.
 - Na mapie są zgłoszenia, kamery, zasoby (zbiorniki, kontenery, stacje) i punkty dostępności; warstwy można włączać i wyłączać.

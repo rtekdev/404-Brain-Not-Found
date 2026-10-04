@@ -19,6 +19,34 @@
 
 ## Wpisy
 
+### 2026-10-04 — Widok jednostki i pojazd jadący do zgłoszenia
+
+Autor: Claude (Opus) + Bartosz
+
+**Zrobione:**
+- Pasek górny bez ikony — sama nazwa SWIMM.
+- Panel zgłoszeń: przełącznik „Widok: dyspozytor miasta / Widok jednostki: …". Jednostka widzi na liście
+  i na mapie tylko zgłoszenia przekazane do niej; w szczegółach „Przyjmij do realizacji" → „Zakończ
+  zgłoszenie" (→ „Wznów") i „Przekaż dalej" do innej jednostki albo służby (Policja, Pogotowie, Straż Pożarna).
+- Pojazd na mapie (`lib/dispatch.ts`, `components/map/VehicleOverlay.tsx`): po wejściu w zgłoszenie
+  krytyczne, w realizacji albo przejęte przez służby jedzie karetka / policja / straż / ekipa jednostki,
+  trasą po ulicach z publicznego OSRM (bez odpowiedzi w 2,5 s — łuk), z migającymi światłami i czasem dojazdu.
+- Pokaz bez bazy: przekazanie służbom (`handledBy`) i pojazd żyją tylko na ekranie; przyjęcie / zakończenie
+  / przekazanie jednostce zapisują status i jednostkę w bazie jak dotąd.
+- Naprawa za zgodą: `app/reports/LiveResponseListener.tsx` (niezacommitowana zmiana spoza tej pracy)
+  wołał `revalidatePath` w komponencie klienckim i kładł całą aplikację po restarcie — usunięte trzy linie.
+
+**Zweryfikowane — jak dokładnie:**
+- TDD: `lib/dispatch.test.ts` (9 testów) najpierw czerwone, potem zielone; `npm test` 63 zaliczone,
+  15 pominiętych (integracyjne bez bazy); `tsc` czysty.
+- Chrome (puppeteer) na `/centrum`: Wodociągi → „Uszkodzony hydrant" → Przyjmij → ekipa jedzie ulicami
+  Bronowic, „dojazd ~2 min" → „na miejscu"; Przekaż → Policja → radiowóz; dyspozytor → D14 → „mężczyzna
+  zemdlał" → karetka.
+
+**Uwagi:**
+- Serwer deweloperski w Dockerze przestaje widzieć zmiany plików — pomaga `docker compose restart web`.
+- Część zapisów plików w trakcie pracy cofała się sama (prawdopodobnie autozapis otwartego edytora).
+
 ### 2026-10-04 — Scalenie z main (zgłoszenia na żywo) i porządek w gałęziach
 
 Autor: Claude (Opus) + rtek

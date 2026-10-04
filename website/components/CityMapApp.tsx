@@ -12,6 +12,8 @@ import EventsPanel from "./EventsPanel";
 import ResourcesPanel from "./ResourcesPanel";
 import SidePanel, { type Mode } from "./SidePanel";
 import FlowOverlay from "./map/FlowOverlay";
+import VehicleOverlay from "./map/VehicleOverlay";
+import { dispatchFor } from "@/lib/dispatch";
 import ReportDialog from "./ReportDialog";
 import CameraFeed from "./CameraFeed";
 import { Legend, ZoomControls } from "./Legend";
@@ -70,6 +72,8 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
   const [draft, setDraft] = useState<LngLat | null>(null);
   const [toast, setToast] = useState<{ id: string; text: string } | null>(null);
   const [mode, setMode] = useState<Mode>("zgloszenia");
+  // Podgląd jako jednostka odpowiedzialna (null — dyspozytor całego miasta).
+  const [unitView, setUnitView] = useState<string | null>(null);
   // Powiadomienia o nowych zgłoszeniach z bazy (inne kanały, symulacja alarmu).
   const [alertIds, setAlertIds] = useState<string[]>([]);
   const [doneSteps, setDoneSteps] = useState<Set<string>>(() => new Set());
@@ -222,9 +226,23 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
     if (s.action === "notify") setToast({ id: r.id, text: `Powiadomiono: ${s.target} · ${r.id}` });
   };
 
-  const updateReport = (id: string, patch: { status?: Status; unitId?: string | null }) => {
+  /** `handledBy` (przekazanie służbom) zostaje tylko na ekranie — pokaz bez zapisu w bazie. */
+  const updateReport = (id: string, patch: { status?: Status; unitId?: string | null; handledBy?: string | null }) => {
     setReports((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    void updateReportAction(id, patch);
+    const { handledBy: _local, ...saved } = patch;
+    if (saved.status !== undefined || saved.unitId !== undefined) void updateReportAction(id, saved);
+  };
+
+  const forwardReport = (id: string, target: string) => {
+    if (target.startsWith("unit:")) {
+      const unitId = target.slice(5);
+      updateReport(id, { unitId, status: "przekazane" });
+      setSelection(null);
+      setToast({ id, text: `Przekazano ${id} → ${unitById(unitId)?.name}` });
+    } else {
+      updateReport(id, { handledBy: target, status: "w_realizacji" });
+      setToast({ id, text: `Przekazano ${id} → ${target}` });
+    }
   };
 
   /** Zapis w bazie; identyfikator i dzielnicę nadaje serwer. */
@@ -275,6 +293,10 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
   const selAccess = selection?.type === "access" ? access.find((a) => a.id === selection.id) : undefined;
   const cameraReport = selCamera && scored.find((r) => r.cameraId === selCamera.id && r.status !== "zamkniete");
   const resources = mode === "zasoby";
+  // Jednostka widzi na liście i na mapie tylko zgłoszenia przekazane do niej.
+  const inView = unitView ? scored.filter((r) => r.unitId === unitView) : scored;
+  const selReport = !resources && selection?.type === "report" ? scored.find((r) => r.id === selection.id) : undefined;
+  const selDispatch = selReport ? dispatchFor(selReport) : null;
   // Zgłoszenia i zasoby to osobne widoki mapy — warstwy z menu działają w obrębie widoku.
   const visible = {
     ...layers,
@@ -315,7 +337,7 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
             layers={visible}
             sectors={geo.sectorList}
             selectedSector={selectedSector}
-            reports={scored}
+            reports={inView}
             cameras={cameras}
             assets={assets}
             access={access}
@@ -345,6 +367,17 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
                   : []),
               ]}
               onSectorClick={(id) => selectSector(selectedSector === id ? null : id)}
+            />
+          )}
+
+          {selReport && selDispatch && (
+            <VehicleOverlay
+              key={`${selReport.id}:${selDispatch.kind}`}
+              map={map}
+              reportId={selReport.id}
+              target={selReport.position}
+              dispatch={selDispatch}
+              padding={padding}
             />
           )}
 
@@ -490,7 +523,13 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
           />
         ) : (
       <EventsPanel
-        reports={scored}
+        reports={inView}
+        unitView={unitView}
+        onUnitView={(id) => {
+          setUnitView(id);
+          setSelection(null);
+        }}
+        onForward={forwardReport}
         now={now}
         selectedId={selection?.type === "report" ? selection.id : null}
         sectorFilter={selectedSector}
