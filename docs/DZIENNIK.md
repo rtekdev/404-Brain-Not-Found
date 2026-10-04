@@ -19,6 +19,27 @@
 
 ## Wpisy
 
+### 2026-10-04 — „Symuluj alarm" na serwerze i koszt połączenia w demo
+
+Autor: Claude (Opus) + Bartosz
+
+**Zrobione:**
+- „Symuluj alarm" na serwerze zapisywał zgłoszenie, ale mapa go nie pokazywała: bot telefoniczny zapisuje
+  `created_at` z przyszłości (do ~1 h), więc `lastSeen` w przeglądarce wyprzedzał zegar bazy i `reportsSince`
+  nic nie zwracał. `reportsSince` bierze teraz `LEAST(since, now() - 2 min)`; znane zgłoszenia odfiltrowuje przeglądarka.
+- `/` pod numerem: „W trakcie demo każda rozpoczęta minuta połączenia to 1 zł." To samo zdanie w
+  `docs/materials/SWIMM_prezentacja.pdf`, slajd 4, pod podpisem zrzutu strony (PyMuPDF, Segoe UI Semibold, podzbiór czcionki).
+
+**Zweryfikowane — jak dokładnie:**
+- Na serwerze: klik „Symuluj alarm" → licznik otwartych +1, brak alarmu; `/api/reports/Z-1084…1091` (źródło
+  telefon) mają daty 7–58 min w przyszłości. Lokalnie alarm działał (brak takich dat).
+- Test na lokalnej bazie: zgłoszenie z datą +1 h, potem nowe → `reportsSince(data z przyszłości)` zwraca nowe.
+- `tsc` czysto, `npm test` 63 zaliczone. PDF: 10 stron, link do demo na ostatniej zachowany, slajd 4 obejrzany.
+  Strony `/` nie obejrzałem w przeglądarce (serwer z kopii roboczej nie wstał) — zmiana to jeden akapit.
+
+**Do zrobienia poza tym repo:** bot telefoniczny powinien zapisywać `created_at = now()` (strefa czasowa) oraz
+dzielnicę i współrzędne.
+
 ### 2026-10-04 — Zgłoszenia telefoniczne na mapie
 
 Autor: Claude (Opus) + Bartosz

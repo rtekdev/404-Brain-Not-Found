@@ -194,8 +194,11 @@ function fillMissingPlacesOnce(pool: Pool): Promise<void> {
 /** Zgłoszenia utworzone po chwili `sinceMs` (do powiadomień o nowych zgłoszeniach). */
 export async function reportsSince(pool: Pool, sinceMs: number): Promise<Report[]> {
   await fillMissingPlacesOnce(pool);
+  // Kanały spoza aplikacji (bot telefoniczny) potrafią zapisać datę z przyszłości — wtedy `sinceMs` z przeglądarki
+  // wyprzedza zegar bazy i nowe zgłoszenia (np. „Symuluj alarm") nie przychodzą. Granica nie dalej niż „teraz" bazy
+  // minus zapas; znane zgłoszenia przeglądarka i tak odfiltrowuje.
   const { rows } = await pool.query<ReportRow>(
-    "SELECT * FROM reports WHERE created_at >= to_timestamp($1 / 1000.0) ORDER BY created_at",
+    "SELECT * FROM reports WHERE created_at >= LEAST(to_timestamp($1 / 1000.0), now() - interval '2 minutes') ORDER BY created_at",
     [sinceMs],
   );
   return rows.map(rowToReport);
