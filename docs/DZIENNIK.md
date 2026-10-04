@@ -19,6 +19,20 @@
 
 ## Wpisy
 
+### 2026-10-04 — Prezentacja: „/min” i slajd z architekturą
+
+Autor: Claude (Opus) + Bartosz
+
+**Zrobione:**
+- Slajd 8: przy „-10%” dopisek „/min” (połowa wielkości, szary).
+- Nowy slajd 10 „Wszystkie kanały trafiają do jednej kolejki”: lejek z kanałów (telefon/ElevenLabs, SMS,
+  czat, kamery) → przyjęcie (n8n) → zapis (PostgreSQL) → ocena (reguły, potem Bielik) → panel (NOTIFY → SSE).
+  Dotychczasowy slajd 10 jest teraz 11. PDF ma 11 stron.
+- Generator `prezentacja/build/deck2.js` (poza repo) dostał też zdanie o koszcie minuty ze slajdu 4,
+  które wcześniej dopisano tylko w PDF — stoi teraz obok podpisu zrzutu, nie pod nim.
+
+**Zweryfikowane — jak dokładnie:** render PowerPoint (`r3.ps1`), obejrzane slajdy 4, 8, 10 i 11.
+
 ### 2026-10-04 — „Symuluj alarm" na serwerze i koszt połączenia w demo
 
 Autor: Claude (Opus) + Bartosz

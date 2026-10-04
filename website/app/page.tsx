@@ -23,7 +23,6 @@ export default function Home() {
             {CONTACT.phone}
           </span>
         </a>
-        <p className="-mt-2 text-center text-sm text-muted">W trakcie demo każda rozpoczęta minuta połączenia to 1 zł.</p>
 
         <ul className="grid grid-cols-3 gap-2 text-sm">
           <li>
