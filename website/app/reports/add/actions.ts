@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { insertReport } from "@/lib/reports";
 import { unitForCategory } from "@/lib/meta";
 import { CATEGORY_LABELS, SOURCE_LABELS, STATUS_LABELS } from "@/lib/types";
