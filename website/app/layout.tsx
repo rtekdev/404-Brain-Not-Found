@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "./Navbar";
 import { APP_NAME } from "@/lib/meta";
-import LiveReports from "./reports/LiveResponseListener";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +27,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="h-full flex flex-col overflow-auto">
         <Navbar />
-        <LiveReports />
         {children}
       </body>
     </html>

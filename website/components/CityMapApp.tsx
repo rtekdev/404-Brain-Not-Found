@@ -135,6 +135,11 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
     setReports((rs) => [...fresh, ...rs]);
     setNow(Date.now());
     setAlertIds((ids) => [...ids, ...fresh.map((r) => r.id)]);
+    const [first] = fresh;
+    setToast({
+      id: first.id,
+      text: fresh.length === 1 ? `Nowe zgłoszenie ${first.id} · ${first.title}` : `${fresh.length} nowe zgłoszenia · ${first.title} i inne`,
+    });
   }, []);
 
   const poll = useCallback(async () => {
@@ -163,8 +168,23 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
     }
   }, [announce, poll, city, router]);
 
+  // Nowy wiersz w bazie → NOTIFY → SSE → dociągamy nowe zgłoszenia. Seria wstawień = jedno pobranie.
   useEffect(() => {
-    const i = setInterval(poll, 4000);
+    const es = new EventSource("/api/reports/stream");
+    let t: ReturnType<typeof setTimeout> | undefined;
+    es.onmessage = () => {
+      clearTimeout(t);
+      t = setTimeout(() => void poll(), 200);
+    };
+    return () => {
+      clearTimeout(t);
+      es.close();
+    };
+  }, [poll]);
+
+  useEffect(() => {
+    // Zapas na wypadek zerwanego strumienia — główną ścieżką jest SSE wyżej.
+    const i = setInterval(poll, 15_000);
     const onAlarm = () => void simulateAlarm();
     let t: ReturnType<typeof setTimeout> | undefined;
     window.addEventListener("swimm:simulate-alarm", onAlarm);
@@ -567,6 +587,7 @@ export default function CityMapApp({ city, cities, others }: { city: CityData; c
 
       {toast && (
         <div
+          key={toast.text}
           role="status"
           className="glass animate-slide-in absolute bottom-20 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm sm:bottom-6"
         >

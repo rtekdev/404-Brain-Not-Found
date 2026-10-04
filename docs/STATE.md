@@ -36,7 +36,7 @@ repozytorium. Termin zgłoszenia: 4 października, 23:00.
 
 - Widok zasobów z przekierowaniami jest gotowy na gałęzi `feature/zasoby` i czeka na zapisanie.
 - Od teraz pracujemy w trybie TDD — każda zmiana logiki zaczyna się od testu.
-- Nowe zgłoszenia (z każdego kanału, wykrywane w bazie co 4 s) wywołują komunikat: krytyczne — wyraźny alarm z animacją, zwykłe — lekki; szczegóły pokazują status (np. przejęte przez 112) i kroki reagowania od AI. Przycisk „Symuluj alarm" w górnym pasku.
+- Nowe zgłoszenia (z każdego kanału, dopisywane na mapę od razu po zapisie w bazie — `NOTIFY` → SSE; zapasowo co 15 s) wywołują komunikat: krytyczne — wyraźny alarm z animacją, zwykłe — lekki; szczegóły pokazują status (np. przejęte przez 112) i kroki reagowania od AI. Przycisk „Symuluj alarm" w górnym pasku. Każde nowe zgłoszenie daje też dymek u dołu mapy.
 - Mapa działa na bazie PostgreSQL (gałąź `feature/baza-danych`): dane miasta, zgłoszenia, kamery i obiekty z bazy; nowe zgłoszenia i zmiany statusu zapisują się w bazie.
 - Dwa miasta demo: Kraków (domyślne, ze scenariuszami prezentacji) i Kielce — przełącznik w górnym pasku mapy, a po oddaleniu mapy drugie miasto podświetla się i można je kliknąć (decyzja D-03).
 

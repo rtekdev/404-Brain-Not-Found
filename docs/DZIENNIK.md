@@ -19,6 +19,25 @@
 
 ## Wpisy
 
+### 2026-10-04 — Zgłoszenia na mapie na żywo (SSE)
+
+Autor: Claude (Opus) + Bartosz
+
+**Zrobione:**
+- Mapa `/centrum` słucha `/api/reports/stream`: wstawienie do `reports` → trigger `NOTIFY new_report` → SSE →
+  `poll()` dociąga nowe wiersze (seria wstawień w 200 ms = jedno pobranie). Odpytywanie zostaje jako zapas co 15 s
+  (było co 4 s jako jedyna droga).
+- Każda partia nowych zgłoszeń pokazuje dymek u dołu mapy („Nowe zgłoszenie Z-… · tytuł" / „N nowe zgłoszenia").
+- `LiveReports` usunięty z `app/layout.tsx`: na mapie robił tylko zbędne `router.refresh()` (stan mapy siedzi
+  w `useState`), a na `/reports` był zamontowany podwójnie. `/reports` ma własny.
+
+**Zweryfikowane — jak dokładnie:**
+- `tsc --noEmit` czysto. W przeglądarce: `INSERT` testowego zgłoszenia prosto w `psql` → po ~1 s marker, alarm
+  i dymek na mapie Krakowa (szybciej niż zapasowe 15 s, więc przez SSE). Wiersz testowy usunięty.
+
+**Uwaga:** kontener `web` (Turbopack) nie łapie zmian plików mimo `WATCHPACK_POLLING` — po zmianie kodu
+`docker restart website-web-1`.
+
 ### 2026-10-04 — Widok jednostki i pojazd jadący do zgłoszenia
 
 Autor: Claude (Opus) + Bartosz
