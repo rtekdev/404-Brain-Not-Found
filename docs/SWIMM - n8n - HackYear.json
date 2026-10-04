@@ -1,0 +1,238 @@
+{
+  "name": "HackYear - zgloszenia z dopasowaniem kamer",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY c.id), '[]'::jsonb) AS cameras FROM public.cameras c;",
+        "options": {}
+      },
+      "name": "Pobierz kamery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2832,
+        352
+      ],
+      "id": "d41d8c01-8064-4959-81de-5790ea98ffbf",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "qP9h7ro41iILxVuM",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Polaczenie musi wskazywac serwer z tabelami oraz baze postgres. Pusta tabela zwraca cameras: []."
+    },
+    {
+      "parameters": {
+        "jsCode": "const report = $('Przygotuj zgloszenie1').first().json;\nlet cameras = $input.first().json.cameras;\n\nif (typeof cameras === 'string') cameras = JSON.parse(cameras);\nif (!Array.isArray(cameras)) {\n  throw new Error('Nieprawidłowa lista kamer');\n}\n\nfunction normalize(value) {\n  return String(value ?? '')\n    .toLowerCase()\n    .replace(/ł/g, 'l')\n    .normalize('NFD')\n    .replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/\\b(?:ulica|ulicy|ulice|ul)\\b\\.?/g, ' ')\n    .replace(/\\b(?:wawelem|wawelu)\\b/g, 'wawel')\n    .replace(/[^a-z0-9]+/g, ' ')\n    .trim()\n    .replace(/\\s+/g, ' ');\n}\n\nfunction containsPhrase(text, phrase) {\n  return (` ${text} `).includes(` ${phrase} `);\n}\n\nconst address = normalize(report.address);\nconst generic = new Set([\n  'kamera', 'centrum', 'krakow', 'kielce', 'ulica', 'plac'\n]);\n\nconst candidates = cameras.flatMap(camera => {\n  // Pełna nazwa oraz człony, np. \"Wawel\" i \"Zamek Królewski\".\n  const keys = [\n    normalize(camera.name),\n    ...String(camera.name ?? '').split(/[·|;—]/).map(normalize)\n  ].filter(key => key.length >= 4 && !generic.has(key));\n\n  const matches = keys.filter(key => containsPhrase(address, key));\n  if (!matches.length) return [];\n\n  const lon = Number(camera.longitude);\n  const lat = Number(camera.latitude);\n\n  if (\n    camera.longitude == null || camera.latitude == null ||\n    !Number.isFinite(lon) || !Number.isFinite(lat) ||\n    Math.abs(lon) > 180 || Math.abs(lat) > 90\n  ) return [];\n\n  return [{\n    camera,\n    score: Math.max(...matches.map(key => key.length))\n  }];\n});\n\ncandidates.sort((a, b) =>\n  b.score - a.score ||\n  String(a.camera.id).localeCompare(String(b.camera.id))\n);\n\n// Nie wybieraj przypadkowej kamery przy równorzędnych wynikach.\nconst ambiguous =\n  candidates.length > 1 &&\n  candidates[0].score === candidates[1].score;\n\nconst camera = !ambiguous ? candidates[0]?.camera : null;\n\nreturn [{\n  json: {\n    ...report,\n    description:\n      report.description + '\\nAdres zgłoszenia: ' + report.address,\n    longitude: camera ? Number(camera.longitude) : report.longitude,\n    latitude: camera ? Number(camera.latitude) : report.latitude,\n    camera_id: camera?.id ?? null,\n    camera_match: ambiguous\n      ? 'ambiguous'\n      : camera ? 'matched' : 'not_found',\n    matched_camera_name: camera?.name ?? null,\n    matched_camera_count: candidates.length\n  }\n}];"
+      },
+      "name": "Dopasuj kamere",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3072,
+        352
+      ],
+      "id": "2aca395d-370a-4149-9c9f-338d6df365dd",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput",
+      "notes": "Porownuje address/adres/street/ulica z cameras.name. Ignoruje wielkosc liter, polskie znaki i prefiks ul. Dopuszcza numer budynku po nazwie ulicy. Nie rozpoznaje odmiany nazw ani dowolnych opisow lokalizacji. Przy braku dopasowania zachowuje wspolrzedne webhooka lub NULL. Wspolrzedne kamery oznaczaja punkt kamery, nie dokladny punkt zdarzenia."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\nif (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Oczekiwano obiektu JSON w body webhooka');\nconst categories = ['drogi','zielen','woda','odpady','oswietlenie','dostepnosc','bezpieczenstwo','inne'];\nfunction text(value, field) {\n  if (typeof value !== 'string' || !value.trim()) throw new Error('Brak pola: ' + field);\n  return value.trim();\n}\nfunction coordinate(value, min, max, field) {\n  if (value === undefined || value === null || value === '') return null;\n  if (!['number','string'].includes(typeof value) || String(value).trim() === '') throw new Error('Nieprawidlowe pole: ' + field);\n  const n = Number(value);\n  if (!Number.isFinite(n) || n < min || n > max) throw new Error('Nieprawidlowa wspolrzedna: ' + field);\n  return n;\n}\nconst longitude = coordinate(data.longitude, -180, 180, 'longitude');\nconst latitude = coordinate(data.latitude, -90, 90, 'latitude');\nif ((longitude === null) !== (latitude === null)) throw new Error('Przeslij obie wspolrzedne albo zadnej');\nlet blocking = false;\nif (data.blocking === true || data.blocking === 'true') blocking = true;\nelse if (data.blocking === false || data.blocking === 'false') blocking = false;\nelse if (data.blocking != null && data.blocking !== '') throw new Error('blocking musi byc true lub false');\nreturn [{json: {\n  address: text(data.address ?? data.adres ?? data.street ?? data.ulica, 'address'),\n  title: text(data.title, 'title'),\n  description: text(data.description, 'description'),\n  category: categories.includes(data.category) ? data.category : 'inne',\n  longitude, latitude, blocking\n}}];"
+      },
+      "name": "Przygotuj zgloszenie1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2576,
+        352
+      ],
+      "id": "aa3edd33-48e9-45fb-be6f-14793a703743",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH payload AS (\n  SELECT $1::jsonb AS d\n), saved AS (\n  INSERT INTO public.reports (\n    id, title, description, category, source, status,\n    longitude, latitude, created_at, confirmations, blocking, camera_id\n  )\n  SELECT\n    'Z-' || nextval('public.report_id_seq'),\n    d->>'title',\n    d->>'description',\n    d->>'category',\n    'telefon',\n    'nowe',\n    (d->>'longitude')::double precision,\n    (d->>'latitude')::double precision,\n    now() + INTERVAL '2 hours',\n    1,\n    COALESCE((d->>'blocking')::boolean, false),\n    d->>'camera_id'\n  FROM payload\n  RETURNING id, title, status, longitude, latitude, camera_id, created_at\n), timezone_settings AS (\n  SELECT set_config('TimeZone', 'Europe/Warsaw', true)\n)\nSELECT\n  true AS success,\n  'saved'::text AS code,\n  'Zgłoszenie zostało zapisane w systemie miejskim.'::text AS message,\n  to_jsonb(s) AS report\nFROM saved s\nCROSS JOIN timezone_settings;",
+        "options": {
+          "queryReplacement": "={{ [JSON.stringify($json)] }}"
+        }
+      },
+      "name": "Zapisz w PostgreSQL1",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3328,
+        352
+      ],
+      "id": "9a751d4d-b13b-4ac6-b75f-2c4a1e3ffa31",
+      "notesInFlow": true,
+      "credentials": {
+        "postgres": {
+          "id": "qP9h7ro41iILxVuM",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "notes": "Wymaga nullable longitude i latitude w public.reports. Zapisuje NULL przy braku kamery i wspolrzednych. ID 10 znakow, confidence domyslnie 0.7, blocking false, confirmations 1."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: $json.success === true, code: $json.code, message: $json.message, report_id: $json.report ? $json.report.id : null, report: $json.report, camera_match: $(\"Dopasuj kamere\").first().json.camera_match } }}",
+        "options": {
+          "responseCode": "={{ $json.success === true ? 200 : 422 }}"
+        }
+      },
+      "name": "Potwierdz zapis1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3584,
+        352
+      ],
+      "id": "cc20a3d6-b9c3-4717-ab8e-1b7fd95aca18"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zgloszenia-telefoniczne",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2320,
+        352
+      ],
+      "id": "6cdc5bd6-6f3e-474c-a682-16fd27b59ddb",
+      "name": "Webhook",
+      "webhookId": "7068cb5a-0551-4bd0-8fe2-fb75f0590835"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, code: \"workflow_error\", message: \"Nie potwierdzono zapisu zgłoszenia. Wystąpił błąd walidacji lub bazy danych. Sprawdź wykonanie workflow w n8n.\" } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Odpowiedz blad",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3328,
+        672
+      ],
+      "id": "8c8547ad-e4d5-4ea9-9c23-f6b2e8ba9665"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Pobierz kamery": {
+      "main": [
+        [
+          {
+            "node": "Dopasuj kamere",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Odpowiedz blad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dopasuj kamere": {
+      "main": [
+        [
+          {
+            "node": "Zapisz w PostgreSQL1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Odpowiedz blad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Przygotuj zgloszenie1": {
+      "main": [
+        [
+          {
+            "node": "Pobierz kamery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Odpowiedz blad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zapisz w PostgreSQL1": {
+      "main": [
+        [
+          {
+            "node": "Potwierdz zapis1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Odpowiedz blad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Przygotuj zgloszenie1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Europe/Warsaw",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "cccccd0d-d5d4-4642-b98a-4400ad69c745",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "391826cfb83af00af787f4fa8e6c28d8c66f3248238e68ff297dbbcdc83ee5b9"
+  },
+  "id": "W6yRQsETIQgdm2gI",
+  "tags": []
+}
