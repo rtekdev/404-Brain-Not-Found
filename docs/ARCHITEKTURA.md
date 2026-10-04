@@ -26,6 +26,7 @@ z `DATABASE_URL` uruchamia się też test integracyjny na bazie.
 | Zasoby | `website/lib/resources.ts` | liczy odczyty miar (energia, woda, odpady, ciepło) per obiekt i sektor oraz wnioski |
 | Lista zgłoszeń | `website/app/reports/`, `lib/reports.ts`, `lib/report-event.ts`, `app/api/reports/` | `/reports` — lista od najpilniejszego z filtrem miast, odświeżana na żywo (trigger `NOTIFY new_report` → `LISTEN` → SSE `/api/reports/stream`), szczegóły, formularz nowego zgłoszenia (położenie z wybranej kamery albo wpisane; dzielnica z geometrii) |
 | Alarmy i plan reagowania | `website/lib/response.ts`, `components/AlertCenter.tsx`, `components/AlarmButton.tsx`, `components/ClipPreview.tsx` | wybiera najważniejsze nowe zgłoszenie do animacji, układa skrót, status i kroki reagowania (reguły w miejsce modelu); nagranie z kamery (`public/clips/<kamera>.mp4`) z powiększeniem i paskiem klatek |
+| Widok jednostki i pojazdy | `website/components/EventsPanel.tsx` (`UnitActions`), `lib/dispatch.ts`, `components/map/VehicleOverlay.tsx` | podgląd jako jednostka (przyjęcie, zakończenie, przekazanie dalej); dobór pojazdu do zgłoszenia i animacja przejazdu trasą z OSRM (pokaz, bez zapisu) |
 | Ranking dzielnic | `website/lib/sectors.ts` | liczy otwarte i krytyczne zgłoszenia dzielnic i układa je od najpilniejszej |
 | Przekierowania | `website/lib/transfer.ts` | wycenia przeniesienie zasobu między sektorami i proponuje najlepsze trasy |
 | Baza danych | `website/database/01-schema.sql`, `02-city.sql`, `03-seed.sql`, `04-kielce.sql` | definiuje schemat i wczytuje miasta (Kraków, Kielce) oraz dane startowe przy pierwszym starcie Postgresa |
@@ -67,6 +68,7 @@ liczone z profili dzielnic. Odtworzenie bazy od zera: `docker compose down -v &&
 | CARTO Dark Matter | podkład mapy | `components/map/MapView.tsx` | brak ulic i etykiet; granice, sektory i znaczniki dalej działają |
 | WebCamera.pl | obraz na żywo 6 kamer w Starym Mieście i na Kazimierzu (iframe `player.webcamera.pl`) | `lib/demo-data.ts`, `components/CameraFeed.tsx` | pusty podgląd tej kamery; reszta aplikacji działa, pozostałe kamery mają podgląd stylizowany |
 | Anthropic API (Claude Opus 5.5, `effort: low`, fallback serwerowy) | odpowiedzi czatu na stronie głównej | `app/api/chat/route.ts`; klucz `ANTHROPIC_API_KEY` w `website/.env` | czat odpowiada „chwilowo niedostępny" i podaje numer telefonu; reszta strony działa |
+| OSRM (router.project-osrm.org) | trasa przejazdu pojazdu do zgłoszenia | `components/map/VehicleOverlay.tsx` | po 2,5 s pojazd jedzie łukiem zamiast ulicami; reszta działa |
 | OpenStreetMap (Nominatim, Overpass) | granica, dzielnice i osiedla przy onboardingu miasta | `scripts/build-city.mjs` | nie da się odświeżyć danych miasta; aplikacja używa zapisanych plików GeoJSON (Overpass ma serwery zapasowe) |
 
 ## Decyzje techniczne, które kształtują ten układ

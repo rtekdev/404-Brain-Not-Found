@@ -138,6 +138,15 @@ body {
   animation: edge-glow 1.4s ease-in-out 5;
 }
 
+/* Pojazd służb w drodze — migające światła (kolory z --l1 / --l2). */
+@keyframes vehicle-beacon {
+  0%, 49% { box-shadow: -6px 0 14px 2px var(--l1), 0 0 0 3px rgb(0 0 0 / 0.35); }
+  50%, 100% { box-shadow: 6px 0 14px 2px var(--l2), 0 0 0 3px rgb(0 0 0 / 0.35); }
+}
+.vehicle-beacon {
+  animation: vehicle-beacon 0.6s steps(1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .alert-critical,
   .alert-siren,
@@ -145,6 +154,7 @@ body {
   .marker-pulse::after,
   .hub-pulse::after,
   .flow-dash,
+  .vehicle-beacon,
   .animate-slide-in {
     animation: none;
   }
