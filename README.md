@@ -6,6 +6,7 @@
 
 Projekt zespołu **404 Brain Not Found** na HackYeah 2026 (zadanie SMART CITY).
 
+Film demonstracyjny: https://youtu.be/716Imcb4024
 Mamy własny serwer: https://swim.szubzdadev.pl/centrum
 
 ## O co chodzi
