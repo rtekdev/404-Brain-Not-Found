@@ -1,7 +1,6 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { revalidatePath } from "next/cache";
 
 export default function LiveReports() {
   const router = useRouter();
@@ -14,8 +13,6 @@ export default function LiveReports() {
       clearTimeout(timer);
       timer = setTimeout(() => {
         router.refresh()
-        revalidatePath("/reports");
-        revalidatePath("/centrum");
       }, 200); // batch bursts of inserts
     };
 

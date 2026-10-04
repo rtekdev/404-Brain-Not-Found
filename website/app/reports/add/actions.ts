@@ -45,6 +45,5 @@ export async function createReport(_prev: FormState, formData: FormData): Promis
     unitId: d.status === "nowe" ? null : unitForCategory(d.category).id,
   });
 
-  revalidatePath("/reports");
   redirect(`/reports/${id}`); // keep outside try/catch, redirect works by throwing
 }
