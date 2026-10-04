@@ -23,7 +23,7 @@ Demo działa na Krakowie (18 dzielnic) i Kielcach. Zgłoszenia, kamery i pomiary
 
 ## Jak uruchomić
 
-Potrzebny jest tylko [Docker](https://www.docker.com/products/docker-desktop/).
+Potrzebny jest tylko zainstalowany [Docker](https://www.docker.com/products/docker-desktop/).
 
 ```bash
 git clone https://github.com/rtekdev/404-Brain-Not-Found.git
