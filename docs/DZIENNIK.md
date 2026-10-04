@@ -19,6 +19,30 @@
 
 ## Wpisy
 
+### 2026-10-04 — Zgłoszenia telefoniczne na mapie
+
+Autor: Claude (Opus) + Bartosz
+
+**Zrobione:**
+- Bot telefoniczny zapisuje zgłoszenia prosto do bazy bez dzielnicy, część także bez współrzędnych
+  (sam adres w opisie: „Adres zgłoszenia: …"). Mapa pokazuje tylko zgłoszenia z dzielnicą, więc ich nie było —
+  na `/reports` były. Teraz `lib/city-repo.ts` przed wczytaniem miasta i przed `reportsSince` uzupełnia takie
+  wiersze i zapisuje je w bazie: dzielnica z geometrii; brak współrzędnych → geokoder OSM (Nominatim)
+  po adresie, potem adres bez „ulica/ul./aleja/al.", na końcu samo miasto (położenie przybliżone).
+  Nieudane próby nie są powtarzane do restartu serwera; ≤ 1 zapytanie do geokodera na sekundę.
+- `/api/reports/stream` wysyła komentarz od razu po połączeniu — wcześniej nagłówki czekały na pierwsze
+  zdarzenie i za Cloudflare strumień nie startował.
+- `/reports/[id]` nie wywraca się na zgłoszeniu bez współrzędnych („brak").
+
+**Zweryfikowane — jak dokładnie:**
+- `tsc --noEmit` czysto. Na lokalnej bazie: wiersz bez dzielnicy → `reportsSince` nadał D01. Geokodowanie
+  (podstawiony wiersz bez współrzędnych): „ulica Jana Pawła, Kraków" → D01, „Kraków" → D13, bez adresu → pominięty.
+- Diagnoza na serwerze: `/api/reports/Z-1074` i `a009e78a45` — `sector: null`, `position: [null, null]`;
+  `Z-1071` — współrzędne są, dzielnicy brak.
+
+**Uwaga:** w katalogu roboczym działają dwa `docker compose watch web`; synchronizacja do `/app`, który jest
+też bind-mountem tego katalogu, nadpisuje pliki starszymi wersjami (ze starymi datami modyfikacji).
+
 ### 2026-10-04 — Zgłoszenia na mapie na żywo (SSE)
 
 Autor: Claude (Opus) + Bartosz

@@ -63,6 +63,7 @@ export async function otherCityOutlines(pool: Pool, slug: string): Promise<CityO
 const IN_CITY = "sector IN (SELECT id FROM sectors WHERE city_slug = $1)";
 
 export async function loadCity(pool: Pool, slug = DEFAULT_CITY): Promise<CityData> {
+  await fillMissingPlacesOnce(pool);
   const [city, sectors, places, reports, cameras, assets, access] = await Promise.all([
     pool.query<{ slug: string; name: string; boundary: Polygon | MultiPolygon }>("SELECT slug, name, boundary FROM city WHERE slug = $1", [slug]),
     pool.query<SectorRow>("SELECT * FROM sectors WHERE city_slug = $1 ORDER BY id", [slug]),
@@ -124,8 +125,75 @@ export async function updateReport(pool: Pool, id: string, patch: { status?: Sta
   );
 }
 
+// Adresy, których geokoder nie znalazł — nie pytamy o nie w kółko przy każdym odświeżeniu.
+const geocodeMisses = new Set<string>();
+let filling: Promise<void> | null = null;
+let lastGeocode = 0;
+
+/** Adres z opisu zgłoszenia telefonicznego: „Adres zgłoszenia: ul. Floriańska 45, Kraków". */
+function addressOf(description: string): string | null {
+  return description.match(/Adres zg[łl]oszenia:\s*(.+)/i)?.[1].trim() || null;
+}
+
+async function geocode(address: string): Promise<LngLat | null> {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pl&q=${encodeURIComponent(address)}`;
+  const res = await fetch(url, { headers: { "User-Agent": "SWIMM-hackyeah/1.0" }, signal: AbortSignal.timeout(4000) });
+  const [hit] = (await res.json()) as { lon: string; lat: string }[];
+  return hit ? [Number(hit.lon), Number(hit.lat)] : null;
+}
+
+/**
+ * Zgłoszenia wpisane do bazy z pominięciem aplikacji (np. bot telefoniczny) mogą nie mieć dzielnicy,
+ * a nawet współrzędnych — a mapa pokazuje tylko zgłoszenia z dzielnicą. Uzupełniamy je i zapisujemy:
+ * współrzędne z adresu w opisie (geokoder OSM), dzielnicę z geometrii.
+ */
+async function fillMissingPlaces(pool: Pool): Promise<void> {
+  const { rows } = await pool.query<{ id: string; description: string; longitude: number | null; latitude: number | null }>(
+    "SELECT id, description, longitude, latitude FROM reports WHERE sector IS NULL",
+  );
+  const todo = rows.filter((r) => !geocodeMisses.has(r.id));
+  if (todo.length === 0) return;
+  const { rows: sectors } = await pool.query<SectorRow>("SELECT * FROM sectors");
+  const { rows: cities } = await pool.query<{ name: string }>("SELECT name FROM city");
+  const features = sectors.map((x) => rowToSector(x).feature);
+  for (const r of todo) {
+    let pos: LngLat | null = r.longitude != null && r.latitude != null ? [r.longitude, r.latitude] : null;
+    let sector = pos && sectorOf(pos, features);
+    const address = pos ? null : addressOf(r.description);
+    if (address) {
+      // Od najdokładniejszego: pełny adres, bez „ulica/ul./aleja/al.", a na końcu samo miasto (przybliżone położenie).
+      const tries = [
+        address,
+        address.replace(/\b(ulica|ul\.|aleja|al\.)\s*/gi, ""),
+        ...cities.filter((c) => address.includes(c.name)).map((c) => c.name),
+      ];
+      for (const q of [...new Set(tries)]) {
+        if (lastGeocode) await new Promise((ok) => setTimeout(ok, Math.max(0, lastGeocode + 1100 - Date.now()))); // OSM: ≤ 1 zapytanie/s
+        lastGeocode = Date.now();
+        pos = await geocode(q).catch(() => null);
+        sector = pos && sectorOf(pos, features);
+        if (sector) break;
+      }
+    }
+    if (!pos || !sector) {
+      geocodeMisses.add(r.id);
+      continue;
+    }
+    await pool.query("UPDATE reports SET longitude = $2, latitude = $3, sector = $4 WHERE id = $1", [r.id, pos[0], pos[1], sector]);
+  }
+}
+
+/** Jedno uzupełnianie naraz — mapa i alarm potrafią wołać równocześnie. */
+function fillMissingPlacesOnce(pool: Pool): Promise<void> {
+  filling ??= fillMissingPlaces(pool)
+    .catch(() => {})
+    .finally(() => (filling = null));
+  return filling;
+}
+
 /** Zgłoszenia utworzone po chwili `sinceMs` (do powiadomień o nowych zgłoszeniach). */
 export async function reportsSince(pool: Pool, sinceMs: number): Promise<Report[]> {
+  await fillMissingPlacesOnce(pool);
   const { rows } = await pool.query<ReportRow>(
     "SELECT * FROM reports WHERE created_at >= to_timestamp($1 / 1000.0) ORDER BY created_at",
     [sinceMs],

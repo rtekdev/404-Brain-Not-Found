@@ -12,6 +12,8 @@ export async function GET(req: Request) {
       const send = (data: unknown) =>
         controller.enqueue(enc.encode(`data: ${JSON.stringify(data)}\n\n`));
 
+      // Pierwszy bajt od razu — bez niego nagłówki czekają na pierwsze zdarzenie, a proxy (Cloudflare) zrywa połączenie.
+      controller.enqueue(enc.encode(": connected\n\n"));
       const ping = setInterval(() => controller.enqueue(enc.encode(": ping\n\n")), 25_000);
       reportEvents.on("new_report", send);
 
