@@ -1,4 +1,4 @@
-import { MessageSquare, Phone, Send, Siren } from "lucide-react";
+import { MessageCircle, MessageSquare, Phone, Siren } from "lucide-react";
 import HelpChat from "@/components/HelpChat";
 import { APP_FULL_NAME, CONTACT, telHref } from "@/lib/meta";
 
@@ -31,9 +31,10 @@ export default function Home() {
             </a>
           </li>
           <li>
-            <a href={`https://t.me/${CONTACT.telegram}`} className={linkClass}>
-              <Send size={16} className="text-cyan" aria-hidden /> Telegram
-            </a>
+            {/* WhatsApp jeszcze nie działa — przycisk widoczny, ale nieaktywny. */}
+            <span aria-disabled="true" title="WhatsApp — wkrótce" className={`${linkClass} cursor-not-allowed opacity-50 hover:bg-panel-solid`}>
+              <MessageCircle size={16} className="text-cyan" aria-hidden /> WhatsApp
+            </span>
           </li>
           <li>
             <a href={telHref(CONTACT.emergency)} className={linkClass}>
