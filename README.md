@@ -48,3 +48,11 @@ Czat AI na stronie głównej odpowiada dopiero po wpisaniu klucza `ANTHROPIC_API
 Stos: Next.js 16, PostgreSQL 17, MapLibre GL, OpenStreetMap oraz zewnętrznie podpięte ElevenLabs i n8n.
 
 ElevenLabs i n8n nie są wymagane aby aplikacja działała
+
+## Wykorzystane narzędzia 
+
+- Cloude: Opus 5.5, Sonnet 5.5, Haiku 4.5 
+- GPT: 6-Astra
+- Plugin: autorski do efektywnego zarządzania projektem
+- Dane statystyczne: GUS, Społeczeństwo informacyjne w Polsce, MSWiA, ZDMK Kraków
+- API: OpenStreetMap, WebCamera.pl
