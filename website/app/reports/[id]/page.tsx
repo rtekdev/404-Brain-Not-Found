@@ -45,7 +45,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     ["Miejsce", r.cityName ? `${r.cityName}${r.sectorName ? `, ${r.sectorName}` : ""}` : "poza sektorami"],
     ["Zgłoszono", timeAgo(r.createdAt, now)],
     ["Potwierdzenia", r.confirmations],
-    ["Współrzędne", <span key="pos" className="font-mono text-xs">{r.position[1].toFixed(5)}, {r.position[0].toFixed(5)}</span>],
+    ["Współrzędne", <span key="pos" className="font-mono text-xs">{r.position[0].toFixed(5)}, {r.position[1].toFixed(5)}</span>],
   ];
 
   return (
