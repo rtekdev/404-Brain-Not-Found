@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teaser — 404 Brain Not Found</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5/build/mp4-muxer.min.js"></script>
+<script src="krakow.js"></script>
+<style>
+  :root { --bg:#0b0b0c; --panel:#151517; --line:#2a2a2e; --fg:#e8e8ea; --muted:#8a8a92; --accent:#f5b83d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 Inter, system-ui, sans-serif; }
+  main { max-width:1280px; margin:0 auto; padding:16px; display:grid; gap:12px; }
+  canvas { width:100%; aspect-ratio:16/9; background:#000; display:block; border:1px solid var(--line); }
+  .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button { background:var(--panel); color:var(--fg); border:1px solid var(--line); padding:8px 14px; border-radius:6px; font:inherit; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { border-color:var(--accent); color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  #time { color:var(--muted); font-variant-numeric:tabular-nums; margin-left:auto; }
+  #status a { color:var(--accent); }
+  #status { color:var(--muted); }
+  details { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 12px; }
+  summary { cursor:pointer; color:var(--muted); }
+  #slots { display:grid; gap:6px; margin-top:8px; }
+  .slot { display:grid; grid-template-columns:90px 1fr auto; gap:10px; align-items:center; }
+  .slot b { color:var(--accent); font-weight:600; }
+  .slot span { color:var(--muted); }
+  .slot.ok span { color:var(--fg); }
+  @media (max-width:640px) { .slot { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <canvas id="c" width="1920" height="1080"></canvas>
+  <input id="scrub" type="range" min="0" step="0.01" value="0">
+  <div class="bar">
+    <button id="play">▶ Odtwórz</button>
+    <button id="export" class="primary">⬇ Eksport MP4</button>
+    <span id="status"></span>
+    <span id="time">0.00 s</span>
+  </div>
+  <details>
+    <summary>Wstawki (opcjonalnie — domyślnie w ich miejscu jest czysta czerń pod montaż)</summary>
+    <div id="slots"></div>
+  </details>
+</main>
+
+<script>
+// ============ SCENARIUSZ ============
+// *słowo* = wyróżnienie, fx = jego przejście: slow | glitch | fill | pulse | ring. \n = nowa linia.
+// Tekst pojawia się sylaba po sylabie (tempo: STEP w sekcji typografii).
+const SCENES = [
+  { type:'card', text:'Denerwuje Cię\n*powolność* samorządu?', fx:'slow', dur:2.5 },
+  { type:'gap',  id:'1', note:'kolejka w urzędzie / zirytowany człowiek', dur:1 },
+  { type:'card', text:'Uważasz, że zostało tylko\nczekać na *wypadek?*', fx:'glitch', dur:2.6 },
+  { type:'gap',  id:'2', note:'dziura w jezdni, auto / rower w nią wjeżdża', dur:1 },
+  { type:'card', text:'Nie musisz być\nna to *obojętny.*', fx:'fill', dur:2.4 },
+  { type:'gap',  id:'3', note:'przechodzień zatrzymuje się przy usterce', dur:1 },
+  { type:'card', text:'Rozejrzyj się.\n*Pomóż* sobie i innym.', fx:'pulse', dur:2.4 },
+  { type:'gap',  id:'4', note:'ktoś robi telefonem zdjęcie problemu', dur:1 },
+  { type:'card', text:'Ani wiek, ani technologia\nnie są barierą. *Zadzwoń.*', fx:'ring', dur:3.0 },
+  { type:'gap',  id:'5', note:'starsza osoba dzwoni ze zwykłego telefonu', dur:1 },
+  { type:'final', line1:'Nieważne gdzie i co.', line2:'Wszystko zakwalifikujemy.', dur:3.3 },
+  { type:'outro', dur:6.5 },
+];
+// ====================================
+
+const W = 1920, H = 1080, FPS = 30, BAR = Math.round((H - W / 2.39) / 2);
+const AMBER = '#f5b83d', WHITE = '#f2f2f2';
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let acc = 0; for (const s of SCENES) { s.start = acc; acc += s.dur; }
+const TOTAL = acc;
+const FINAL = SCENES.find(s => s.type === 'final'), OUTRO = SCENES.find(s => s.type === 'outro');
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ease = x => 1 - Math.pow(1 - clamp(x), 3);
+const easeInOut = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const back = x => { x = clamp(x); const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+function rng(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+
+// ---------- ziarno (deterministyczne) ----------
+const grain = (() => { const r = rng(7); return Array.from({ length: 8 }, () => {
+  const g = document.createElement('canvas'); g.width = 480; g.height = 270;
+  const gx = g.getContext('2d'), d = gx.createImageData(480, 270);
+  for (let i = 0; i < d.data.length; i += 4) { const n = r() * 255; d.data[i] = d.data[i+1] = d.data[i+2] = n; d.data[i+3] = 255; }
+  gx.putImageData(d, 0, 0); return g; }); })();
+
+function background(t, lift = 0) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W / 2, H * 0.52, 0, W / 2, H * 0.52, W * 0.6);
+  g.addColorStop(0, `rgba(28,28,34,${0.55 + lift})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function finish(t) {
+  ctx.save(); ctx.globalAlpha = 0.06; ctx.globalCompositeOperation = 'overlay';
+  ctx.drawImage(grain[Math.floor(t * FPS) % grain.length], 0, 0, W, H); ctx.restore();
+  const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, H * 1.0);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, BAR); ctx.fillRect(0, H - BAR, W, BAR);
+}
+function hitFx(lt, strength = 1) { // drganie kamery + błysk na uderzeniu
+  const h = Math.max(0, 1 - lt / 0.28) ** 2 * strength;
+  return { dx: Math.sin(lt * 93) * 9 * h, dy: Math.cos(lt * 71) * 6 * h, flash: h };
+}
+
+// ---------- sylaby (polski, uproszczone reguły) ----------
+const VOW = new Set([...'aąeęioóuy']), SON = new Set(['r', 'l', 'ł', 'm', 'n', 'j']);
+const DIG = ['ch', 'cz', 'sz', 'rz', 'dz', 'dź', 'dż'];
+function syllables(word) {
+  const lw = word.toLowerCase(), u = [];
+  for (let i = 0; i < lw.length;) { const n = DIG.includes(lw.slice(i, i + 2)) ? 2 : 1; u.push({ a: i, c: lw.slice(i, i + n) }); i += n; }
+  u.forEach((x, i) => { x.v = VOW.has(x.c) && !(x.c === 'i' && u[i + 1] && VOW.has(u[i + 1].c)); x.glide = x.c === 'i' && !x.v; });
+  const nuc = u.map((x, i) => x.v ? i : -1).filter(i => i >= 0);
+  if (nuc.length < 2) return [word];
+  const cuts = [];
+  for (let k = 0; k < nuc.length - 1; k++) {
+    const cl = []; for (let i = nuc[k] + 1; i < nuc[k + 1]; i++) cl.push(i);
+    let s;
+    if (cl.length === 0) s = nuc[k + 1];
+    else if (cl.length === 1) s = cl[0];
+    else if (u[cl.at(-1)].glide) s = cl[cl.length - 2];           // ba-rie-rą, lo-gia
+    else if (SON.has(u[cl[0]].c)) s = cl[1];                      // tyl-ko, wol-ność
+    else if (SON.has(u[cl.at(-1)].c)) s = cl.at(-1);              // jęt-ny, waż-ne
+    else s = cl[0];                                               // zo-sta-ło, za-dzwoń
+    cuts.push(u[s].a);
+  }
+  return [0, ...cuts].map((c, i, arr) => word.slice(c, arr[i + 1]));
+}
+
+// ---------- typografia ----------
+const STEP = 0.072, WGAP = 0.035, SYL_IN = 0.24;
+const FONT = (size, weight = 600) => `${weight} ${size}px Oswald, "Arial Narrow", sans-serif`;
+function layout(text, size, { weight = 600, fx = null, delay = 0 } = {}) {
+  ctx.font = FONT(size, weight); ctx.letterSpacing = '4px';
+  const lines = text.split('\n'), lh = size * 1.2, words = [], syls = [];
+  let t = delay;
+  lines.forEach((line, li) => {
+    const parts = line.split(' ').map(w => ({ em: w.includes('*'), text: w.replace(/\*/g, '').toUpperCase() }));
+    const space = ctx.measureText(' ').width;
+    parts.forEach(p => p.w = ctx.measureText(p.text).width);
+    const total = parts.reduce((a, p) => a + p.w, 0) + space * (parts.length - 1);
+    let x = -total / 2; const y = (li - (lines.length - 1) / 2) * lh;
+    for (const p of parts) {
+      const w = { ...p, x, y, size, fx: p.em ? fx : null, syls: [] };
+      const step = w.fx === 'slow' ? STEP * 2.4 : STEP;
+      let pre = '';
+      for (const sy of syllables(w.text)) {
+        const o = { text: sy, x: x + (pre ? ctx.measureText(pre).width : 0), y, t, word: w };
+        w.syls.push(o); syls.push(o); pre += sy; t += step;
+      }
+      w.t0 = w.syls[0].t; w.t1 = w.syls.at(-1).t + SYL_IN;
+      words.push(w); x += p.w + space; t += WGAP;
+    }
+  });
+  return { words, syls, end: t };
+}
+const jit = (n, k) => { const v = Math.sin(n * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
+
+function drawSyl(sy, lt, color, inDur = SYL_IN) {
+  const p = ease((lt - sy.t) / inDur); if (p <= 0) return 0;
+  ctx.globalAlpha *= p;
+  const blur = (1 - p) * 10;
+  ctx.filter = blur > 0.4 ? `blur(${blur.toFixed(1)}px)` : 'none';
+  ctx.fillStyle = color; ctx.fillText(sy.text, sy.x, sy.y + (1 - p) * 26);
+  ctx.filter = 'none'; return p;
+}
+
+// przejścia słów wyróżnionych — każde w innym charakterze
+const FX = {
+  // POWOLNOŚĆ: sylaby wchodzą w zwolnionym tempie, ze smugą ruchu
+  slow(w, lt) {
+    for (const sy of w.syls) {
+      const p = ease((lt - sy.t) / 0.6); if (p <= 0) continue;
+      for (let g = 3; g >= 1; g--) { ctx.save(); ctx.globalAlpha *= p * 0.18 / g; ctx.fillStyle = AMBER; ctx.fillText(sy.text, sy.x - (1 - p) * 46 * g, sy.y); ctx.restore(); }
+      ctx.save(); ctx.globalAlpha *= p; ctx.filter = p < 1 ? `blur(${((1 - p) * 8).toFixed(1)}px)` : 'none';
+      ctx.fillStyle = AMBER; ctx.shadowColor = 'rgba(245,184,61,.45)'; ctx.shadowBlur = 22 * p;
+      ctx.fillText(sy.text, sy.x - (1 - p) * 46, sy.y); ctx.restore();
+    }
+  },
+  // WYPADEK: twarde wejście sylab + glitch z rozszczepieniem kolorów
+  glitch(w, lt) {
+    const lw = lt - w.t0, j = Math.max(0, 1 - lw / 0.6), f = Math.floor(lt * 30);
+    for (const sy of w.syls) {
+      if (lt < sy.t) continue;
+      if (j > 0) {
+        const dx = (jit(f, 1) - 0.5) * 22 * j;
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha *= 0.7 * j; ctx.fillStyle = '#ff5a3d'; ctx.fillText(sy.text, sy.x + dx + 6 * j, sy.y);
+        ctx.fillStyle = '#fff3d6'; ctx.fillText(sy.text, sy.x - dx - 6 * j, sy.y); ctx.restore();
+        for (let k = 0; k < 4; k++) { // poprzesuwane paski
+          const y0 = sy.y - w.size * 0.5 + k * w.size / 4, off = jit(f, k + 5) > 0.55 ? (jit(f, k + 9) - 0.5) * 40 * j : 0;
+          ctx.save(); ctx.beginPath(); ctx.rect(sy.x - 60, y0, 1000, w.size / 4 + 1); ctx.clip();
+          ctx.fillStyle = AMBER; ctx.fillText(sy.text, sy.x + off, sy.y); ctx.restore();
+        }
+      } else { ctx.fillStyle = AMBER; ctx.fillText(sy.text, sy.x, sy.y); }
+    }
+  },
+  // OBOJĘTNY: wchodzi szary, obojętny — potem wypełnia się kolorem
+  fill(w, lt) {
+    w.syls.forEach(sy => { ctx.save(); drawSyl(sy, lt, '#5f5f66'); ctx.restore(); });
+    const k = easeInOut((lt - w.t1 - 0.05) / 0.45); if (k <= 0) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(w.x - 10, w.y - w.size, (w.w + 20) * k, w.size * 2); ctx.clip();
+    ctx.fillStyle = AMBER; ctx.shadowColor = 'rgba(245,184,61,.5)'; ctx.shadowBlur = 24; ctx.fillText(w.text, w.x, w.y); ctx.restore();
+    if (k < 1) { ctx.save(); ctx.globalAlpha *= Math.sin(k * Math.PI); ctx.fillStyle = '#fff1cf'; ctx.shadowColor = AMBER; ctx.shadowBlur = 20;
+      ctx.fillRect(w.x - 10 + (w.w + 20) * k - 2, w.y - w.size * 0.55, 4, w.size * 1.1); ctx.restore(); }
+  },
+  // POMÓŻ: fale rozchodzące się od słowa, jak pomoc, która niesie się dalej
+  pulse(w, lt) {
+    w.syls.forEach(sy => { ctx.save(); ctx.shadowColor = 'rgba(245,184,61,.5)'; ctx.shadowBlur = 20; drawSyl(sy, lt, AMBER); ctx.restore(); });
+    for (const d of [0, 0.2]) {
+      const e = clamp((lt - w.t1 - d) / 0.75); if (e <= 0 || e >= 1) continue;
+      const pad = 14 + ease(e) * 46, h = w.size * 0.8 + pad * 2;
+      ctx.save(); ctx.globalAlpha *= (1 - e) * 0.8; ctx.strokeStyle = AMBER; ctx.lineWidth = 3;
+      const px = pad * 0.45; // w poziomie mniej, żeby nie wchodzić na sąsiednie słowa
+      ctx.beginPath(); ctx.roundRect(w.x - px, w.y - h / 2, w.w + px * 2, h, h / 2); ctx.stroke(); ctx.restore();
+    }
+  },
+  // ZADZWOŃ: słowo wibruje jak telefon, a na boki rozchodzą się fale dźwięku
+  ring(w, lt) {
+    const lw = lt - w.t1, cx = w.x + w.w / 2;
+    const vib = lw > 0 ? Math.sin(lw * Math.PI * 2 * 16) * 0.05 * Math.max(0, 1 - lw / 0.8) : 0;
+    ctx.save(); ctx.translate(cx, w.y); ctx.rotate(vib); ctx.translate(-cx, -w.y);
+    w.syls.forEach(sy => { ctx.save(); ctx.shadowColor = 'rgba(245,184,61,.5)'; ctx.shadowBlur = 20; drawSyl(sy, lt, AMBER); ctx.restore(); });
+    ctx.restore();
+    if (lw <= 0) return;
+    ctx.save(); ctx.strokeStyle = AMBER; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      const e = ((lw * 1.6) + i / 3) % 1, r = w.size * 0.35 + e * 46, a = Math.sin(e * Math.PI) * Math.min(1, lw / 0.2);
+      ctx.globalAlpha = a * 0.85;
+      ctx.beginPath(); ctx.arc(w.x + w.w + 6, w.y, r, -0.6, 0.6); ctx.stroke();
+    }
+    ctx.restore();
+  },
+};
+
+function drawText(L, lt, { color = WHITE, exit = null } = {}) {
+  const ex = exit == null ? 0 : clamp((lt - exit) / 0.16);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  for (const w of L.words) {
+    ctx.save();
+    ctx.font = FONT(w.size); ctx.letterSpacing = '4px';
+    ctx.globalAlpha = 1 - ex; if (ex > 0) ctx.filter = `blur(${(ex * 12).toFixed(1)}px)`;
+    if (w.fx) FX[w.fx](w, lt);
+    else w.syls.forEach(sy => { ctx.save(); drawSyl(sy, lt, color); ctx.restore(); });
+    ctx.restore();
+  }
+}
+
+function drawCard(s, lt, t) {
+  background(t);
+  prepareLayouts();
+  const fx = hitFx(lt), g = s.fx === 'glitch' && s.L.words.find(w => w.fx);
+  const gk = g ? Math.max(0, 1 - (lt - g.t0) / 0.35) * (lt >= g.t0) : 0; // dodatkowy wstrząs przy „wypadku”
+  ctx.save();
+  ctx.translate(W / 2 + fx.dx + Math.sin(lt * 120) * 14 * gk, H / 2 + fx.dy + Math.cos(lt * 97) * 8 * gk);
+  const z = 1 + 0.045 * (lt / s.dur); ctx.scale(z, z);
+  drawText(s.L, lt, { exit: s.dur - 0.16 });
+  ctx.restore();
+  const fl = Math.max(fx.flash, gk);
+  if (fl > 0) { ctx.fillStyle = `rgba(255,240,220,${0.07 * fl})`; ctx.fillRect(0, 0, W, H); }
+  finish(t);
+}
+
+function drawFinal(s, lt, t) {
+  background(t, 0.1 * ease(lt / 1));
+  prepareLayouts(); const HIT = s.hit;
+  const fx = hitFx(lt), fx2 = hitFx(lt - HIT, 1.4), shake = lt > HIT ? fx2 : fx;
+  ctx.save();
+  ctx.translate(W / 2 + shake.dx, H / 2 + shake.dy);
+  const z = 1 + 0.03 * (lt / s.dur); ctx.scale(z, z);
+  drawText(s.L1, lt, { color: '#cfcfd4', exit: s.dur - 0.25 });
+  // linia 2 — uderzenie w całości: ze skali, złota, z poświatą i smugą
+  const p = ease((lt - HIT) / 0.45);
+  if (p > 0) {
+    const ex = clamp((lt - (s.dur - 0.25)) / 0.25);
+    ctx.save(); const sc = 1.14 - 0.14 * p; ctx.scale(sc, sc);
+    ctx.font = FONT(112, 700); ctx.letterSpacing = '4px'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = p * (1 - ex); ctx.filter = p < 1 || ex > 0 ? `blur(${((1 - p) * 16 + ex * 12).toFixed(1)}px)` : 'none';
+    ctx.fillStyle = AMBER; ctx.shadowColor = 'rgba(245,184,61,.55)'; ctx.shadowBlur = 34 + 20 * Math.sin(lt * 4) ** 2;
+    ctx.fillText(s.line2.toUpperCase(), 0, 50 + (1 - p) * 30);
+    ctx.restore();
+    const k = clamp((lt - HIT - 0.05) / 0.9);
+    if (k > 0 && k < 1) {
+      const x = -W * 0.4 + k * W * 1.3, y = 50 * sc;
+      ctx.globalCompositeOperation = 'lighter';
+      const gr = ctx.createLinearGradient(x - W / 2 - 500, 0, x - W / 2 + 500, 0);
+      gr.addColorStop(0, 'rgba(245,184,61,0)'); gr.addColorStop(0.5, `rgba(255,214,140,${0.55 * Math.sin(k * Math.PI)})`); gr.addColorStop(1, 'rgba(245,184,61,0)');
+      ctx.fillStyle = gr; ctx.fillRect(-W / 2, y - 2, W, 4);
+      ctx.fillStyle = `rgba(245,184,61,${0.12 * Math.sin(k * Math.PI) * (1 - ex)})`; ctx.fillRect(-W / 2, y - 40, W, 80);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+  ctx.restore();
+  if (shake.flash > 0) { ctx.fillStyle = `rgba(255,236,200,${0.1 * shake.flash})`; ctx.fillRect(0, 0, W, H); }
+  finish(t);
+}
+
+// ---------- outro: mapa Krakowa ----------
+const CAT = {
+  drogi:          { name:'Drogi',          color:'#f5b83d' },
+  woda:           { name:'Woda',           color:'#4da3ff' },
+  oswietlenie:    { name:'Oświetlenie',    color:'#ffe27a' },
+  dostepnosc:     { name:'Dostępność',     color:'#b48cff' },
+  odpady:         { name:'Odpady',         color:'#5ad18a' },
+  zielen:         { name:'Zieleń',         color:'#2fbf71' },
+  bezpieczenstwo: { name:'Bezpieczeństwo', color:'#ff5a5a' },
+};
+const MAP = (() => {
+  const K = window.KRAKOW, all = K.boundary.flat();
+  const lons = all.map(p => p[0]), lats = all.map(p => p[1]);
+  const kx = Math.cos(50.06 * Math.PI / 180);
+  const minX = Math.min(...lons) * kx, maxX = Math.max(...lons) * kx, minY = Math.min(...lats), maxY = Math.max(...lats);
+  const box = { x: 150, y: BAR + 70, w: 1080, h: H - 2 * BAR - 140 };
+  const sc = Math.min(box.w / (maxX - minX), box.h / (maxY - minY));
+  const ox = box.x + (box.w - (maxX - minX) * sc) / 2, oy = box.y + (box.h - (maxY - minY) * sc) / 2;
+  const P = ([lon, lat]) => [ox + (lon * kx - minX) * sc, oy + (maxY - lat) * sc];
+  const ring = r => { const pts = r.map(P), path = new Path2D(); let len = 0;
+    pts.forEach((p, i) => { i ? path.lineTo(...p) : path.moveTo(...p); if (i) len += Math.hypot(p[0] - pts[i-1][0], p[1] - pts[i-1][1]); });
+    path.closePath(); return { path, len }; };
+  const sectors = K.sectors.flatMap(s => s.rings.map(ring));
+  const boundary = K.boundary.map(ring);
+  const r = rng(42);
+  const reports = K.reports.filter(x => CAT[x.cat]).map(x => ({ ...x, p: P([x.lon, x.lat]), o: r() })).sort((a, b) => a.o - b.o);
+  const counts = {}; reports.forEach(x => counts[x.cat] = (counts[x.cat] || 0) + 1);
+  const cats = Object.keys(CAT).filter(c => counts[c]).sort((a, b) => counts[b] - counts[a]);
+  const labelY = c => BAR + 190 + cats.indexOf(c) * 78;
+  reports.forEach((x, i) => { x.at = 0.75 + i * 0.05; x.arrive = x.at + 0.6; });
+  return { sectors, boundary, reports, counts, cats, labelY, cx: box.x + box.w / 2, cy: box.y + box.h / 2 };
+})();
+const LABEL_X = 1400;
+
+function drawOutro(s, lt, t) {
+  background(t, -0.2);
+  const LOGO = 3.9;
+  ctx.save();
+  const z = 1 + 0.06 * easeInOut(lt / s.dur);
+  ctx.translate(MAP.cx, MAP.cy); ctx.scale(z, z); ctx.translate(-MAP.cx, -MAP.cy);
+  // rysowanie dzielnic
+  const pd = easeInOut(lt / 1.3);
+  ctx.lineJoin = 'round';
+  MAP.sectors.forEach(r => {
+    ctx.fillStyle = `rgba(120,130,150,${0.05 * pd})`; ctx.fill(r.path);
+    ctx.setLineDash([r.len * pd, r.len]); ctx.strokeStyle = 'rgba(110,118,135,.55)'; ctx.lineWidth = 1.5; ctx.stroke(r.path);
+  });
+  MAP.boundary.forEach(r => {
+    ctx.setLineDash([r.len * pd, r.len]); ctx.strokeStyle = 'rgba(200,205,215,.85)'; ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(245,184,61,.35)'; ctx.shadowBlur = 14; ctx.stroke(r.path); ctx.shadowBlur = 0;
+  });
+  ctx.setLineDash([]);
+  // linie: zgłoszenie → kategoria
+  for (const x of MAP.reports) {
+    const k = easeInOut((lt - x.at - 0.2) / 0.45); if (k <= 0) continue;
+    const [x0, y0] = x.p, x1 = (LABEL_X - 30 - MAP.cx) / z + MAP.cx, y1 = (MAP.labelY(x.cat) - MAP.cy) / z + MAP.cy;
+    const fade = 1 - clamp((lt - x.arrive) / 1.2) * 0.7;
+    ctx.strokeStyle = CAT[x.cat].color; ctx.globalAlpha = 0.35 * fade; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x0, y0);
+    const mx = x0 + (x1 - x0) * 0.6;
+    const pt = (u) => { const a = 1 - u; return [a*a*a*x0 + 3*a*a*u*mx + 3*a*u*u*mx + u*u*u*x1, a*a*a*y0 + 3*a*a*u*y0 + 3*a*u*u*y1 + u*u*u*y1]; };
+    for (let u = 0.05; u <= k + 1e-6; u += 0.05) ctx.lineTo(...pt(Math.min(u, k)));
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  // pinezki
+  for (const x of MAP.reports) {
+    const lp = lt - x.at; if (lp <= 0) continue;
+    const c = CAT[x.cat].color, [px, py] = x.p;
+    const rp = clamp(lp / 0.9);
+    if (rp < 1) { ctx.strokeStyle = c; ctx.globalAlpha = 0.7 * (1 - rp); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, 6 + 44 * ease(rp), 0, 7); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(px, py, 7 * back(lp / 0.35), 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+  // kolumna kategorii
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  const hp = ease((lt - 0.7) / 0.5);
+  ctx.globalAlpha = hp; ctx.fillStyle = '#8a8a92'; ctx.font = '600 22px Inter, sans-serif'; ctx.letterSpacing = '6px';
+  ctx.fillText('ZAKWALIFIKOWANE', LABEL_X, BAR + 120);
+  MAP.cats.forEach((c, i) => {
+    const a = ease((lt - 0.85 - i * 0.08) / 0.4); if (a <= 0) return;
+    const y = MAP.labelY(c), n = MAP.reports.filter(x => x.cat === c && lt >= x.arrive).length;
+    ctx.globalAlpha = a; ctx.fillStyle = CAT[c].color;
+    ctx.beginPath(); ctx.arc(LABEL_X + 8, y, 8, 0, 7); ctx.fill();
+    ctx.fillStyle = WHITE; ctx.font = '600 38px Oswald, sans-serif'; ctx.letterSpacing = '3px';
+    ctx.fillText(CAT[c].name.toUpperCase(), LABEL_X + 34 + (1 - a) * 20, y);
+    ctx.textAlign = 'right'; ctx.fillStyle = n ? CAT[c].color : '#555';
+    ctx.font = '600 38px Oswald, sans-serif'; ctx.fillText(String(n), LABEL_X + 400, y); ctx.textAlign = 'left';
+  });
+  ctx.globalAlpha = 1;
+  // logo
+  const lg = lt - LOGO;
+  if (lg > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${0.78 * ease(lg / 0.5)})`; ctx.fillRect(0, 0, W, H);
+    const fx = hitFx(lg, 0.8);
+    ctx.save(); ctx.translate(W / 2 + fx.dx, H / 2 - 20 + fx.dy);
+    ctx.font = '700 132px Oswald, sans-serif'; ctx.letterSpacing = '6px'; ctx.textBaseline = 'middle';
+    const a = '404 ', b = 'BRAIN NOT FOUND', wa = ctx.measureText(a).width, wb = ctx.measureText(b).width, x0 = -(wa + wb) / 2;
+    const p = ease(lg / 0.6);
+    ctx.beginPath(); ctx.rect(x0 - 20, -120, (wa + wb + 40) * p, 240); ctx.clip();
+    ctx.filter = p < 1 ? `blur(${((1 - p) * 10).toFixed(1)}px)` : 'none';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = AMBER; ctx.shadowColor = 'rgba(245,184,61,.5)'; ctx.shadowBlur = 30; ctx.fillText(a, x0, 0);
+    ctx.shadowBlur = 0; ctx.fillStyle = WHITE; ctx.fillText(b, x0 + wa, 0);
+    ctx.restore(); ctx.filter = 'none';
+    const sp = ease((lg - 0.5) / 0.6);
+    ctx.globalAlpha = sp; ctx.textAlign = 'center'; ctx.fillStyle = '#9a9aa2';
+    ctx.font = '600 26px Inter, sans-serif'; ctx.letterSpacing = '12px';
+    ctx.fillText('SMART CITY  ·  KRAKÓW', W / 2, H / 2 + 95 + (1 - sp) * 14);
+    ctx.globalAlpha = 1;
+    if (fx.flash > 0) { ctx.fillStyle = `rgba(255,236,200,${0.08 * fx.flash})`; ctx.fillRect(0, 0, W, H); }
+  }
+  finish(t);
+  const out = clamp((lt - (s.dur - 0.45)) / 0.45);
+  if (out > 0) { ctx.fillStyle = `rgba(0,0,0,${out})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// ---------- wstawki ----------
+function drawGap(s, lt, t) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const v = s.video;
+  if (v && s.ready && v.videoWidth) {
+    const r = Math.max(W / v.videoWidth, H / v.videoHeight) * (1 + 0.05 * lt / s.dur);
+    const dw = v.videoWidth * r, dh = v.videoHeight * r;
+    ctx.filter = 'saturate(0.55) contrast(1.18) brightness(0.88)';
+    ctx.drawImage(v, (W - dw) / 2, (H - dh) / 2, dw, dh); ctx.filter = 'none';
+    finish(t);
+  } else if (!exporting) { // podpowiedź tylko w podglądzie
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.letterSpacing = '4px';
+    ctx.fillStyle = 'rgba(245,184,61,.5)'; ctx.font = '600 30px Oswald, sans-serif';
+    ctx.fillText('WSTAWKA ' + s.id, W / 2, H / 2 - 22);
+    ctx.fillStyle = '#555'; ctx.font = '400 24px Inter, sans-serif'; ctx.letterSpacing = '0px';
+    ctx.fillText(s.note, W / 2, H / 2 + 22);
+  }
+}
+
+const DRAW = { card: drawCard, gap: drawGap, final: drawFinal, outro: drawOutro };
+function sceneAt(t) { for (let i = SCENES.length - 1; i >= 0; i--) if (t >= SCENES[i].start) return SCENES[i]; return SCENES[0]; }
+function render(t) {
+  t = clamp(t, 0, TOTAL - 1e-4);
+  const s = sceneAt(t);
+  ctx.save(); DRAW[s.type](s, t - s.start, t); ctx.restore();
+  timeEl.textContent = `${t.toFixed(2)} / ${TOTAL.toFixed(2)} s`;
+}
+
+// ============ DŹWIĘK (renderowany offline, deterministycznie) ============
+const SR = 48000, BPM = 110, BEAT = 60 / BPM, BARL = BEAT * 4;
+const mf = m => 440 * Math.pow(2, (m - 69) / 12);
+let A, M, audioBuf = null;
+
+function noiseBuf(sec, seed = 1) { const r = rng(seed), b = A.createBuffer(1, Math.ceil(SR * sec), SR), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; return b; }
+function note(when, dur, midi, { type = 'sawtooth', vol = 0.05, cut = 1200, att = 0.01, rel = 0.15, detune = 0, pan = 0 } = {}) {
+  const o = A.createOscillator(), f = A.createBiquadFilter(), g = A.createGain(), p = A.createStereoPanner();
+  o.type = type; o.frequency.value = mf(midi); o.detune.value = detune; f.type = 'lowpass'; f.frequency.value = cut; p.pan.value = pan;
+  g.gain.setValueAtTime(0.0001, when); g.gain.linearRampToValueAtTime(vol, when + att);
+  g.gain.setValueAtTime(vol, when + Math.max(att, dur - rel)); g.gain.linearRampToValueAtTime(0.0001, when + dur);
+  o.connect(f); f.connect(g); g.connect(p); p.connect(M); o.start(when); o.stop(when + dur + 0.05);
+}
+function kick(when, vol, f = 55) {
+  const o = A.createOscillator(), g = A.createGain();
+  o.frequency.setValueAtTime(f * 2.2, when); o.frequency.exponentialRampToValueAtTime(f * 0.6, when + 0.16);
+  g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.32);
+  o.connect(g); g.connect(M); o.start(when); o.stop(when + 0.35);
+}
+function hat(when, vol = 0.05) {
+  const n = A.createBufferSource(); n.buffer = HAT;
+  const hp = A.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7500;
+  const g = A.createGain(); g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+  n.connect(hp); hp.connect(g); g.connect(M); n.start(when);
+}
+function boom(when, vol = 0.8, bright = false) {
+  const o = A.createOscillator(), g = A.createGain();
+  o.frequency.setValueAtTime(95, when); o.frequency.exponentialRampToValueAtTime(27, when + 1.3);
+  g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 2.1);
+  o.connect(g); g.connect(M); o.start(when); o.stop(when + 2.2);
+  const n = A.createBufferSource(); n.buffer = NOISE;
+  const lp = A.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = bright ? 3200 : 900;
+  const ng = A.createGain(); ng.gain.setValueAtTime(vol * 0.5, when); ng.gain.exponentialRampToValueAtTime(0.0001, when + 1.1);
+  n.connect(lp); lp.connect(ng); ng.connect(M); n.start(when);
+}
+function whoosh(when, vol = 0.22) {
+  const n = A.createBufferSource(); n.buffer = NOISE;
+  const bp = A.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+  bp.frequency.setValueAtTime(2600, when); bp.frequency.exponentialRampToValueAtTime(380, when + 0.35);
+  const g = A.createGain(); g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.4);
+  n.connect(bp); bp.connect(g); g.connect(M); n.start(when); n.stop(when + 0.45);
+}
+let NOISE, HAT;
+
+function composeMusic() {
+  const F = FINAL.start, END = TOTAL;
+  // BUILD (d-moll): Dm – Bb – Gm – A
+  const build = [[38, [50, 53, 57, 62]], [34, [46, 50, 53, 58]], [31, [43, 50, 55, 58]], [33, [45, 52, 57, 61]]];
+  for (let bar = 0, t = 0; t < F - 0.4; bar++, t += BARL) {
+    const [root, chord] = build[bar % 4], k = t / F, barEnd = Math.min(t + BARL, F - 0.35);
+    chord.forEach((m, j) => note(t, barEnd - t, m, { vol: 0.016 + 0.02 * k, cut: 700 + 1500 * k, att: 0.4, rel: 0.3, detune: j % 2 ? 8 : -8, pan: j % 2 ? 0.45 : -0.45 }));
+    note(t, barEnd - t, root, { type: 'triangle', vol: 0.12, cut: 300, att: 0.05, rel: 0.2 });
+    for (let s = 0; s < 16; s++) {
+      const w = t + s * BEAT / 4; if (w >= F - 0.35) break;
+      note(w, BEAT / 4 * 0.8, root + 12 + (s % 4 === 3 ? 12 : 0), { vol: 0.03 + 0.05 * k, cut: 400 + 2600 * k, rel: 0.05, pan: s % 2 ? 0.2 : -0.2 });
+      if (k > 0.25 && s % 4 === 0) kick(w, 0.3 + 0.3 * k);
+      if (k > 0.5 && s % 2 === 1) hat(w, 0.02 + 0.03 * k);
+    }
+  }
+  // riser + cisza przed finałem
+  const n = A.createBufferSource(); n.buffer = noiseBuf(3, 9);
+  const bp = A.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 5;
+  bp.frequency.setValueAtTime(300, F - 2.6); bp.frequency.exponentialRampToValueAtTime(6500, F - 0.35);
+  const ng = A.createGain(); ng.gain.setValueAtTime(0.0001, F - 2.6);
+  ng.gain.exponentialRampToValueAtTime(0.3, F - 0.37); ng.gain.linearRampToValueAtTime(0.0001, F - 0.3);
+  n.connect(bp); bp.connect(ng); ng.connect(M); n.start(F - 2.6); n.stop(F);
+  // DROP (D-dur): D – A – Bm – G — linia 2 finału wchodzi na 0.75 s, tam pełne uderzenie
+  const D0 = F + FINAL.hit;
+  note(F, 0.75, 62, { type: 'triangle', vol: 0.05, cut: 2000, att: 0.2, rel: 0.2 });
+  const drop = [[38, [62, 66, 69, 74]], [33, [61, 64, 69, 73]], [35, [62, 66, 71, 74]], [31, [62, 67, 71, 74]]];
+  const arp = [0, 1, 2, 3, 2, 1, 2, 3];
+  for (let bar = 0, t = D0; t < END - 0.05; bar++, t += BARL) {
+    const [root, chord] = drop[bar % 4], d = Math.min(BARL, END - t);
+    chord.forEach((m, j) => note(t, d, m - 12, { vol: 0.028, cut: 2600, att: bar ? 0.05 : 0.01, rel: 0.4, detune: j % 2 ? 6 : -6, pan: j % 2 ? 0.4 : -0.4 }));
+    note(t, d, root, { type: 'triangle', vol: 0.16, cut: 420, rel: 0.3 });
+    for (let s = 0; s < 8; s++) {
+      const w = t + s * BEAT / 2; if (w >= END - 0.1) break;
+      note(w, BEAT / 2 * 0.9, chord[arp[s]], { type: 'triangle', vol: 0.045, cut: 5000, rel: 0.1, pan: s % 2 ? 0.3 : -0.3 });
+      if (s % 2 === 0) kick(w, 0.5);
+      hat(w + BEAT / 4, 0.035);
+    }
+  }
+  [62, 66, 69, 74].forEach(m => note(D0, 4.5, m, { type: 'triangle', vol: 0.05, cut: 4000, att: 0.3, rel: 3 }));
+}
+function tick(when, vol = 0.05) { // sylaba
+  const n = A.createBufferSource(); n.buffer = HAT;
+  const bp = A.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 2;
+  const g = A.createGain(); g.gain.setValueAtTime(vol, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.04);
+  n.connect(bp); bp.connect(g); g.connect(M); n.start(when);
+}
+function sweep(when, dur, f0, f1, vol, type = 'sine') {
+  const o = A.createOscillator(), g = A.createGain(); o.type = type;
+  o.frequency.setValueAtTime(f0, when); o.frequency.exponentialRampToValueAtTime(f1, when + dur);
+  g.gain.setValueAtTime(0.0001, when); g.gain.linearRampToValueAtTime(vol, when + 0.05); g.gain.linearRampToValueAtTime(0.0001, when + dur);
+  o.connect(g); g.connect(M); o.start(when); o.stop(when + dur + 0.05);
+}
+const FXSFX = { // dźwięk pod przejściem słowa wyróżnionego
+  slow: (t0) => sweep(t0, 1.0, 220, 92, 0.06, 'triangle'),
+  glitch: (t0) => { kick(t0, 0.55, 48); [0, 0.05, 0.11, 0.19, 0.26].forEach((d, i) => {
+    const n = A.createBufferSource(); n.buffer = NOISE; const hp = A.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1200 + i * 500;
+    const g = A.createGain(); g.gain.setValueAtTime(0.16, t0 + d); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.035);
+    n.connect(hp); hp.connect(g); g.connect(M); n.start(t0 + d, i * 0.1, 0.05); }); },
+  fill: (t0, t1) => sweep(t1 + 0.05, 0.5, 320, 960, 0.045),
+  pulse: (t0, t1) => { kick(t1, 0.35, 62); note(t1, 0.6, 74, { type: 'sine', vol: 0.05, cut: 6000, rel: 0.4 }); note(t1 + 0.2, 0.5, 81, { type: 'sine', vol: 0.035, cut: 6000, rel: 0.4 }); },
+  ring: (t0, t1) => { for (let i = 0; i < 8; i++) note(t1 + i * 0.045, 0.04, i % 2 ? 91 : 88, { type: 'sine', vol: 0.035, cut: 9000, att: 0.003, rel: 0.02 }); },
+};
+function prepareLayouts() {
+  SCENES.forEach(s => {
+    if (s.type === 'card') s.L ||= layout(s.text, 88, { fx: s.fx, delay: 0.04 });
+    if (s.type === 'final' && !s.L1) { s.L1 = layout(s.line1, 80, { delay: 0.04 }); s.L1.words.forEach(w => w.syls.forEach(sy => sy.y = w.y = -70)); s.hit = Math.max(0.75, s.L1.end + 0.12); }
+  });
+}
+function composeSfx() {
+  for (const s of SCENES) {
+    if (s.type === 'card') {
+      boom(s.start, 0.6);
+      s.L.syls.forEach(sy => tick(s.start + sy.t, sy.word.fx ? 0.075 : 0.05));
+      const w = s.L.words.find(x => x.fx); if (w) FXSFX[w.fx](s.start + w.t0, s.start + w.t1);
+    }
+    if (s.type === 'gap') whoosh(s.start - 0.05);
+    if (s.type === 'final') { boom(s.start, 0.45); boom(s.start + s.hit, 1, true); s.L1.syls.forEach(sy => tick(s.start + sy.t)); }
+    if (s.type === 'outro') {
+      whoosh(s.start, 0.15);
+      const pent = [74, 76, 78, 81, 83, 86];
+      MAP.reports.forEach((x, i) => note(s.start + x.at, 0.14, pent[i % pent.length], { type: 'sine', vol: 0.022, cut: 8000, rel: 0.1, pan: (x.p[0] / W) * 1.2 - 0.6 }));
+      boom(s.start + 3.9, 0.8, true);
+    }
+  }
+}
+async function buildAudio() {
+  await document.fonts.ready; prepareLayouts();
+  A = new OfflineAudioContext(2, Math.ceil(SR * TOTAL), SR);
+  const comp = A.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.15;
+  M = A.createGain(); M.gain.value = 0.85; M.connect(comp); comp.connect(A.destination);
+  M.gain.setValueAtTime(0.85, TOTAL - 1.4); M.gain.linearRampToValueAtTime(0.0001, TOTAL);
+  NOISE = noiseBuf(1.5, 3); HAT = noiseBuf(0.06, 5);
+  let ownMusic = null;
+  try { const r = await fetch('music.mp3'); if (r.ok) ownMusic = await A.decodeAudioData(await r.arrayBuffer()); } catch (e) {}
+  if (ownMusic) { const src = A.createBufferSource(); src.buffer = ownMusic; src.connect(M); src.start(0); }
+  else composeMusic();
+  composeSfx();
+  audioBuf = await A.startRendering();
+}
+
+// ============ PODGLĄD ============
+const timeEl = document.getElementById('time'), statusEl = document.getElementById('status'), scrub = document.getElementById('scrub');
+scrub.max = TOTAL;
+let live = null, exporting = false;
+function stopPreview() { if (live) { live.src.stop(); live.ctx.close(); live = null; } playBtn.textContent = '▶ Odtwórz'; }
+const playBtn = document.getElementById('play');
+playBtn.onclick = async () => {
+  if (live) return stopPreview();
+  if (!audioBuf) { statusEl.textContent = 'Renderuję dźwięk…'; await buildAudio(); statusEl.textContent = ''; }
+  const ac = new AudioContext(), src = ac.createBufferSource(); src.buffer = audioBuf; src.connect(ac.destination);
+  let from = +scrub.value; if (from >= TOTAL - 0.05) from = 0;
+  await ac.resume(); const t0 = ac.currentTime; src.start(t0, from);
+  live = { ctx: ac, src }; playBtn.textContent = '❚❚ Pauza';
+  src.onended = () => { if (live && live.src === src) stopPreview(); };
+  SCENES.forEach(s => s.video && s.ready && s.video.play().catch(() => {}));
+  const tick = () => {
+    if (!live || live.src !== src) return;
+    const t = from + ac.currentTime - t0; scrub.value = t; syncVideos(t, false); render(t);
+    requestAnimationFrame(tick);
+  };
+  tick();
+};
+scrub.oninput = () => { stopPreview(); syncVideos(+scrub.value, true); render(+scrub.value); };
+
+// ============ WSTAWKI (opcjonalne pliki) ============
+const slotsEl = document.getElementById('slots');
+SCENES.filter(s => s.type === 'gap').forEach(s => {
+  const row = document.createElement('label'); row.className = 'slot';
+  row.innerHTML = `<b>Wstawka ${s.id}</b><span>${s.note} — czerń</span><input type="file" accept="video/*">`;
+  row.querySelector('input').onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto';
+    v.onloadeddata = () => { s.ready = true; row.classList.add('ok'); row.querySelector('span').textContent = f.name; };
+    v.src = URL.createObjectURL(f); s.video = v;
+  };
+  slotsEl.appendChild(row);
+});
+function syncVideos(t, hard) {
+  for (const s of SCENES) if (s.video && s.ready) {
+    const lt = t - s.start;
+    if (lt >= 0 && lt < s.dur) { if (hard || Math.abs(s.video.currentTime - lt) > 0.15) s.video.currentTime = lt; }
+  }
+}
+const seekTo = (v, time) => new Promise(r => { if (Math.abs(v.currentTime - time) < 1e-3) return r(); v.onseeked = () => r(); v.currentTime = time; });
+
+// ============ EKSPORT MP4 (WebCodecs, klatka po klatce) ============
+async function pickVideoCodec() {
+  for (const codec of ['avc1.640028', 'avc1.4d0028', 'avc1.42002a']) {
+    const cfg = { codec, width: W, height: H, bitrate: 14e6, framerate: FPS, avc: { format: 'avc' } };
+    if ((await VideoEncoder.isConfigSupported(cfg)).supported) return cfg;
+  }
+  throw new Error('Brak kodeka H.264 w tej przeglądarce');
+}
+async function pickAudioCodec() {
+  const aac = { codec: 'mp4a.40.2', sampleRate: SR, numberOfChannels: 2, bitrate: 192000 };
+  if ((await AudioEncoder.isConfigSupported(aac)).supported) return [aac, 'aac'];
+  const opus = { codec: 'opus', sampleRate: SR, numberOfChannels: 2, bitrate: 160000 };
+  if ((await AudioEncoder.isConfigSupported(opus)).supported) return [opus, 'opus'];
+  throw new Error('Brak kodeka audio');
+}
+document.getElementById('export').onclick = async (e) => {
+  const btn = e.target; btn.disabled = true; stopPreview(); exporting = true;
+  try {
+    if (!window.VideoEncoder || !window.Mp4Muxer) throw new Error('Potrzebny Chrome/Edge (WebCodecs) i internet (biblioteka mp4-muxer)');
+    statusEl.textContent = 'Renderuję dźwięk…';
+    if (!audioBuf) await buildAudio();
+    const vcfg = await pickVideoCodec(), [acfg, acodec] = await pickAudioCodec();
+    const muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(), fastStart: 'in-memory',
+      video: { codec: 'avc', width: W, height: H, frameRate: FPS },
+      audio: { codec: acodec, sampleRate: SR, numberOfChannels: 2 },
+    });
+    let err = null;
+    const venc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: x => err = x });
+    const aenc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: x => err = x });
+    venc.configure(vcfg); aenc.configure(acfg);
+    // audio
+    const L = audioBuf.getChannelData(0), R = audioBuf.getChannelData(1), CH = 4800;
+    for (let i = 0; i < audioBuf.length; i += CH) {
+      const n = Math.min(CH, audioBuf.length - i), data = new Float32Array(n * 2);
+      data.set(L.subarray(i, i + n), 0); data.set(R.subarray(i, i + n), n);
+      const ad = new AudioData({ format: 'f32-planar', sampleRate: SR, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(i / SR * 1e6), data });
+      aenc.encode(ad); ad.close();
+    }
+    // wideo
+    const frames = Math.round(TOTAL * FPS), t0 = performance.now();
+    for (let i = 0; i < frames; i++) {
+      if (err) throw err;
+      const t = i / FPS, s = sceneAt(t);
+      if (s.video && s.ready) await seekTo(s.video, t - s.start);
+      render(t);
+      const vf = new VideoFrame(cv, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
+      while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 1));
+      if (i % 10 === 0) { statusEl.textContent = `Eksport: ${Math.round(i / frames * 100)}%`; scrub.value = t; await new Promise(r => setTimeout(r, 0)); }
+    }
+    await venc.flush(); await aenc.flush(); muxer.finalize();
+    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    statusEl.innerHTML = `<a download="teaser-404.mp4" href="${URL.createObjectURL(blob)}">⬇ Pobierz teaser-404.mp4</a> (${(blob.size / 1e6).toFixed(1)} MB, ${frames} klatek, ${secs} s, ${vcfg.codec}/${acodec})`;
+  } catch (x) { statusEl.textContent = 'Błąd eksportu: ' + (x.message || x); console.error(x); }
+  exporting = false; btn.disabled = false;
+};
+
+document.fonts.load('600 88px Oswald').then(() => document.fonts.ready).then(() => { prepareLayouts(); render(1.2); });
+</script>
+</body>
+</html>
